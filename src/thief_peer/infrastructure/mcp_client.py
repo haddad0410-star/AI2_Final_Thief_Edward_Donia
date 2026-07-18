@@ -10,12 +10,17 @@ from __future__ import annotations
 import asyncio
 
 from fastmcp import Client
-from fastmcp.exceptions import ClientError
+from fastmcp.exceptions import ClientError, ToolError
 
 #: FastMCP wraps unreachable-peer failures (connection refused, DNS, etc.) in
-#: a plain RuntimeError as well as the more specific types below -- all mean
-#: "the opponent could not be reached," never a bug in our own code.
-_CONNECTION_FAILURES = (OSError, TimeoutError, ClientError, RuntimeError)
+#: a plain RuntimeError as well as the more specific types below. ToolError
+#: is raised when the opponent IS reachable but rejects the call at the MCP
+#: protocol level (e.g. an unknown tool name -- an incompatible or
+#: mid-startup peer): this is not "our own code is broken," it is the
+#: opponent being unusable right now, so it is classified the same way as a
+#: connection failure rather than left to crash the runtime as an unhandled
+#: exception.
+_CONNECTION_FAILURES = (OSError, TimeoutError, ClientError, ToolError, RuntimeError)
 
 
 class PeerUnavailableError(Exception):

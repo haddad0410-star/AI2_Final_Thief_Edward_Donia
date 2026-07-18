@@ -16,9 +16,17 @@ summarizes only what's specific to running this repo as the Thief side.
 - Thief-specific wire fields: `claim_response` (this side must answer honestly), `win_claim` (this side sends it on survival).
 - Four JSON artifacts this peer writes each series: `declaration_<game_id>.json`,
   `config_<game_id>_g<NN>.json` (x6), `log_<game_id>_g<NN>.json` (x6),
-  `result_<game_id>.json`. Not implemented yet (later batch).
+  `result_<game_id>.json`. Implemented (session recovery step B, Phase 11)
+  and wired into `run-series --artifacts-dir`; verified byte-identical in
+  schema (config/log/result) to the independently-built Police repo's
+  artifacts via serialized fixture comparison. The Step-0 declaration
+  schema is NOT yet cross-repo-compatible (different field names and
+  hardware-field shape) — see `integration_lab/audit/risk_register.md`
+  risk #14.
 - Real two-process negotiation evidence: `integration_lab/evidence/negotiation_smoke/`
   (actual stdout/stderr/exit codes from two independently-launched OS processes).
+  A real two-process full game/series has NOT been run yet (explicitly out
+  of scope through session recovery step B).
 - Sub-game lifecycle (Batch 2): `submit_audit`'s local counterpart,
   `BEGIN_AUDIT`, is only ever driven from `SUB_GAME_OVER` — a real capture or
   survival outcome. A protocol error, a caller-supplied turn cap smaller than

@@ -5,6 +5,56 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — Session recovery step B
+
+- `services/series_runtime.py` (Phase 10): six-sub-game series runtime.
+  Shares one `PeerStateMachine` across sub-games (new `machine` parameter
+  on `run_series()`/`SubGameRuntime.__init__`/`SubGameState.initial`, and a
+  new `bootstrap` parameter on `SubGameRuntime.run()`), so a caller's own
+  incoming-message server and the local turn loop stay in sync. Fresh local
+  state (position/scent/belief/board/step/records) per sub-game.
+- `services/artifact_models.py`/`artifact_builders.py`/`artifacts.py`/
+  `series_artifacts.py` (Phase 11): the four standardized JSON artifacts,
+  verified byte-identical in schema (config/log/result) to the
+  independently-built Police repo's via serialized fixture comparison.
+  `domain/declaration.py::PeerDeclaration` gained `to_dict()`/`validate()`
+  to satisfy the artifact-save protocol.
+- `services/replay_verifier.py`/`replay_loader.py`/`replay_checks.py`
+  (Phase 12): independent headless replay verifier — game_uid/config-hash/
+  count/duplicate-sub-game-number/step-count checks, full commitment/nonce/
+  sequence audit, barrier/capture bounds, score recomputation,
+  VERIFIED/TAMPERED verdict. 16 tests covering 11 tamper categories plus
+  missing-log, missing-artifacts, and duplicate-record detection.
+- `sdk/game_runner.py` (new) + `__main__.py`: `run-subgame`, `run-series`
+  (with `--artifacts-dir`), `verify-replay`, and a new `show-status`
+  command. Ctrl+C is caught at the top level and reported as a clean exit
+  130, not a raw traceback.
+- `services/game_ids.py` (new): `derive_game_id`/`derive_game_uid`,
+  implementing `protocol_contract.md` §3.1's documented (clean-room
+  reimplementable) formula.
+
+### Fixed — Session recovery step B
+
+- `infrastructure/server_lifecycle.py` — production HTTP shutdown still
+  used raw `asyncio.Task.cancel()` after step A's test-only fix; direct
+  experiment confirmed this never reaches `uvicorn.Server.shutdown()` (no
+  `try/finally` around it in uvicorn's own `_serve()`), permanently leaking
+  the listening socket. Rewritten around a new `ManagedServer` class
+  (independent implementation): graceful `should_exit` -> bounded-timeout
+  `force_exit` -> last-resort-cancel escalation, every outcome honestly
+  classified. Refuses to bind to any host other than
+  `127.0.0.1`/`localhost`/`::1`. `sdk/negotiation_runner.py` updated to the
+  new API; the old `IntentionalShutdown`/`run_server_managed`/`stop_server`
+  API removed entirely. 11 new regression tests
+  (`tests/integration/test_server_lifecycle.py`). See
+  `integration_lab/evidence/session_recovery_step_b/server_lifecycle/`.
+- `infrastructure/mcp_client.py` — did not catch
+  `fastmcp.exceptions.ToolError` (an opponent reachable but rejecting a
+  call at the MCP protocol level, e.g. an unknown tool name), letting it
+  crash the runtime as an unhandled exception instead of a clean
+  `PeerUnavailableError` -> `TECHNICAL_LOSS`. Added to the caught
+  connection-failure set; regression test added.
+
 ### Fixed — Session recovery step A
 
 - `services/subgame_runtime.py::SubGameRuntime.run()` — a caller-supplied

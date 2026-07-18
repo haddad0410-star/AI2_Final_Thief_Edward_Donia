@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from thief_peer.domain.hardware import HardwareInfo, probe_hardware
+from thief_peer.shared.errors import SchemaValidationError
 from thief_peer.shared.private_config import PrivateGameConfig
 
 
@@ -73,6 +74,21 @@ class PeerDeclaration:
         data = asdict(self)
         data["members"] = list(self.members)
         return data
+
+    def to_dict(self) -> dict:
+        """Alias satisfying the artifact-save protocol (Phase 11) -- this
+        declaration is saved as declaration_<game_id>.json via the same
+        ``services.artifacts.save_artifact`` every other artifact uses."""
+        return self.to_canonical_dict()
+
+    def validate(self) -> None:
+        """Self-consistency check before this declaration is saved as an
+        artifact -- mirrors the other three artifact models' minimal
+        ``validate()`` contract."""
+        if not self.group_id or not self.group_name:
+            raise SchemaValidationError("declaration needs group_id and group_name")
+        if len(self.config_sha256) != 64:
+            raise SchemaValidationError("config_sha256 must be a 64-char digest")
 
 
 def declaration_mismatches(

@@ -10,20 +10,16 @@ TECHNICAL_LOSS outcome, never a hang.
 from __future__ import annotations
 
 import asyncio
-import random
-from dataclasses import dataclass
-from datetime import UTC, datetime
 
 from thief_peer.domain.captures import SubGameResult
 from thief_peer.domain.positions import Position
 from thief_peer.domain.scoring import score_sub_game
 from thief_peer.domain.sealing import audit_sealed_records
-from thief_peer.domain.state_machine import EventKind, PeerState, TransitionEvent
-from thief_peer.services.gateway import OpponentGateway
+from thief_peer.domain.state_machine import EventKind, PeerState, PeerStateMachine, TransitionEvent
 from thief_peer.services.outcomes import SubGameRunResult
+from thief_peer.services.subgame_deps import SubGameDeps, make_deps  # noqa: F401  (re-exported)
 from thief_peer.services.subgame_state import SubGameState
 from thief_peer.services.turn_loop import run_turn
-from thief_peer.shared.config_models import SharedGameConfig
 
 _LIFECYCLE_TO_WAITING = (
     EventKind.SERVER_STARTED,
@@ -33,45 +29,41 @@ _LIFECYCLE_TO_WAITING = (
 )
 
 
-@dataclass
-class SubGameDeps:
-    """Everything one sub-game turn needs, gathered once."""
-
-    config: SharedGameConfig
-    brain: object
-    hint_provider: object
-    gateway: OpponentGateway
-    game_uid: str
-    config_sha256: str
-
-    @property
-    def response_timeout(self) -> float:
-        return float(self.config.network_and_league.response_timeout_sec)
-
-    @property
-    def survival_threshold(self) -> int:
-        return self.config.movement_and_barriers.survival_threshold
-
-    def now_iso(self) -> str:
-        return datetime.now(UTC).isoformat()
-
-
 class SubGameRuntime:
     """Drives one sub-game to a typed outcome."""
 
-    def __init__(self, deps: SubGameDeps, sub_game_number: int = 1) -> None:
+    def __init__(
+        self,
+        deps: SubGameDeps,
+        sub_game_number: int = 1,
+        *,
+        machine: PeerStateMachine | None = None,
+    ) -> None:
+        """`machine`, if given, is shared across a whole series (Phase 10)
+        instead of a fresh one starting at INITIALIZING -- see
+        `SubGameState.initial`."""
         self._deps = deps
         grid = deps.config.board_and_agents.grid_size
         start = Position(*deps.config.board_and_agents.thief_start)
-        self.state = SubGameState.initial(grid, sub_game_number, start)
+        self.state = SubGameState.initial(grid, sub_game_number, start, machine=machine)
 
     def _fast_forward_to_waiting(self) -> None:
         for kind in _LIFECYCLE_TO_WAITING:
             detail = "config_sha256" if kind is EventKind.TERMS_SIGNED else ""
             self.state.machine.apply(TransitionEvent(kind=kind, detail=detail))
 
-    async def run(self, max_turns: int | None = None) -> SubGameRunResult:
+    async def run(
+        self, max_turns: int | None = None, *, bootstrap: bool = True
+    ) -> SubGameRunResult:
         """Run turns until a typed outcome; then self-audit and score.
+
+        `bootstrap=False` skips the SERVER_STARTED..SUB_GAME_START lifecycle
+        fast-forward -- for sub-game 2+ of a series (Phase 10), the shared
+        machine already sits at WAITING (reached via the *previous*
+        sub-game's AUDITING -> NEXT_SUB_GAME transition), and replaying
+        SERVER_STARTED from there would be an illegal transition. Standalone
+        callers (the default) always start a fresh machine at INITIALIZING
+        and need the full fast-forward, unchanged from before.
 
         Every exit leaves the state machine in a legal state before this
         coroutine returns or raises:
@@ -95,7 +87,8 @@ class SubGameRuntime:
           :meth:`abort` for a consistent, inspectable final state, then
           re-raised -- cancellation is never silently swallowed.
         """
-        self._fast_forward_to_waiting()
+        if bootstrap:
+            self._fast_forward_to_waiting()
         cap = max_turns if max_turns is not None else self._deps.survival_threshold + 1
         try:
             for _ in range(cap):
@@ -137,28 +130,3 @@ class SubGameRuntime:
             police_score=police,
             thief_score=thief,
         )
-
-
-def make_deps(
-    config: SharedGameConfig,
-    gateway: OpponentGateway,
-    game_uid: str,
-    config_sha256: str,
-    *,
-    brain: object | None = None,
-    hint_provider: object | None = None,
-    seed: int = 0,
-) -> SubGameDeps:
-    """Assemble SubGameDeps with the baseline brain + template hints by default."""
-    from thief_peer.strategy.baseline_thief_brain import BaselineThiefBrain
-    from thief_peer.strategy.hint_templates import TemplateHintProvider
-
-    rng = random.Random(seed)
-    return SubGameDeps(
-        config=config,
-        brain=brain or BaselineThiefBrain(rng=rng),
-        hint_provider=hint_provider or TemplateHintProvider(rng=random.Random(seed + 1)),
-        gateway=gateway,
-        game_uid=game_uid,
-        config_sha256=config_sha256,
-    )

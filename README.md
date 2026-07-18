@@ -1,10 +1,18 @@
 # AI2 Final Project — Thief Peer (thief_peer)
 
-**Status: Implementation Batch 1.** Configuration, domain models, board physics,
-scent/belief models, protocol schemas, and a minimal real FastMCP HTTP vertical slice
-(health/negotiate/config-hash-compare) are implemented and tested — see "What's
-actually implemented" below. The full turn-by-turn game loop, strategy, cryptographic
-lifecycle, GUI, replay, and Gmail reporting are **not** implemented yet.
+**Status: Implementation Batch 2, session recovery step B.** Configuration,
+domain models, board physics, scent/belief models, protocol schemas, the
+minimal real FastMCP HTTP vertical slice, the commit-reveal sealing
+lifecycle, Step-0 declaration, state machine, deadline tracker/watchdog,
+baseline strategy brain, template hints, sub-game runtime, and — newly
+implemented this session — the six-sub-game series runtime, JSON artifact
+generation, headless replay verifier, and full CLI wiring
+(`run-subgame`/`run-series`/`verify-replay`/`show-status`) are implemented
+and tested — see "What's actually implemented" below. A real two-process
+game/series, the mutual cross-repo audit, the `EntropyEscapeThiefBrain`
+original strategy, GUI, and Gmail reporting are **not** implemented/run yet.
+Readiness remains below `LOCAL_READY` — see
+`integration_lab/audit/PROGRESS.md`.
 
 ## Abstract
 
@@ -47,13 +55,32 @@ shared protocol contract only (see `docs/PROTOCOL.md`).
 - **Minimal real FastMCP HTTP vertical slice**: `health`/`negotiate`/`propose_config`
   tools, proven over an actual two-independent-process HTTP handshake — evidence in
   `integration_lab/evidence/negotiation_smoke/`.
-- 100 tests, 94.43% coverage, 0 Ruff violations, every file ≤150 meaningful lines.
+- **Batch 2 (verified in session recovery steps A/B)**: commit-reveal
+  sealing, Step-0 declaration, state machine, deadline tracker + watchdog,
+  extended FastMCP turn protocol, baseline strategy brain, template hints,
+  sub-game runtime (Phase 9).
+- **New this session (session recovery step B, Tasks 4-7)**: six-sub-game
+  series runtime (Phase 10, `services/series_runtime.py`), JSON artifact
+  generation (Phase 11, `services/artifact_models.py`/`artifact_builders.py`/
+  `artifacts.py`/`series_artifacts.py`) verified byte-identical in schema to
+  the independently-built Police repo's artifacts, headless replay
+  verifier (Phase 12, `services/replay_verifier.py`), and full CLI wiring
+  (`sdk/game_runner.py`, `run-subgame`/`run-series`/`verify-replay`/
+  `show-status`). All independently implemented — no import of the Police
+  repository.
+- 281 tests, 94.79% coverage, 0 Ruff violations, every file ≤150 meaningful
+  lines (session recovery step B; see `integration_lab/evidence/
+  session_recovery_step_b/quality/`).
 
 ## What's not implemented yet
 
-A game engine that actually plays a sub-game, strategy logic, the full commit-reveal/
-audit lifecycle, a state machine, GUI, replay viewer, or Gmail reporter. Those are
-later batches, after this batch is reviewed and approved.
+`EntropyEscapeThiefBrain` (the original candidate strategy — only the
+from-scratch baseline exists), a live GUI, a visual replay *viewer* (the
+headless verifier exists), Gmail reporting, a real two-process game/series
+against an actual opponent, the mutual cross-repo audit, public network
+exposure, and league play. The live cross-process path for
+`run-subgame`/`run-series` has not been validated (no second peer is run in
+this task) — see `docs/LIMITATIONS.md`.
 
 ## Problem formulation
 

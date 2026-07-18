@@ -43,3 +43,30 @@ yet implement the commit-reveal *lifecycle* (see below).
 None of these lifecycle tests exist yet — commit-reveal is schema-only this batch
 (`src/thief_peer/protocol/messages_turn.py`, `messages_capture.py`); the full sealing/
 audit implementation is a later batch. This document will be updated again then.
+
+## Session recovery step B additions
+
+- **Production resource-leak fix**: `infrastructure/server_lifecycle.py`'s
+  shutdown path previously relied on `asyncio.Task.cancel()`, which does
+  not reliably close the underlying Uvicorn listening socket (verified by
+  direct experiment) — a real, if low-severity, resource leak in
+  production. Replaced with a `ManagedServer` class doing a genuinely
+  graceful shutdown, independently implemented (no import of the Police
+  repository); see the CHANGELOG and `integration_lab/evidence/
+  session_recovery_step_b/server_lifecycle/`.
+- **New this session (Phase 12)**: headless replay verifier
+  (`services/replay_verifier.py`/`replay_loader.py`/`replay_checks.py`),
+  recomputing every commitment/nonce/sequence, checking barrier/capture
+  bounds, and recomputing scores/totals from the config's scoring table.
+  Tested against 11 distinct tamper categories (action, hint, commitment
+  hash, nonce, step number, record ordering, barrier declaration, capture
+  response, config hash, result total, game_uid) plus missing-log and
+  duplicate-sub-game-number detection — all detected. See
+  `integration_lab/evidence/session_recovery_step_b/thief_phase_12_replay/`.
+- **`infrastructure/mcp_client.py` hardening**: did not catch
+  `fastmcp.exceptions.ToolError` (an opponent reachable but rejecting a
+  call at the MCP protocol level), letting it crash the runtime as an
+  unhandled exception instead of a clean `PeerUnavailableError` ->
+  `TECHNICAL_LOSS`. Fixed; regression test added.
+- Still not done: a real cross-process tamper drill against an actual
+  opponent, or the mutual audit.

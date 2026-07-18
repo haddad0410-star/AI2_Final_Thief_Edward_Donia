@@ -60,3 +60,29 @@ reported as a completed, audited game. See `integration_lab/evidence/
 session_recovery_step_a/thief_state_fix/` for the bug this replaced (a bare
 `state_machine.state is not ERROR` check let a WAITING state through to an
 illegal `BEGIN_AUDIT`) and the regression tests added.
+
+## Series runtime, artifacts, replay verifier, CLI (session recovery step B)
+
+`services/series_runtime.py::run_series()` reuses `SubGameRuntime`, passing
+one shared `PeerStateMachine` across all sub-games (`machine` parameter,
+also new this session) so this peer's own incoming-message server
+(`infrastructure/game_tools.py::build_game_server`, which validates
+messages against that same machine) and the local turn loop stay in sync.
+Sub-game 1 bootstraps the full `SERVER_STARTED..SUB_GAME_START` sequence;
+sub-game 2+ starts already at `WAITING` (reached by the previous
+sub-game's `AUDITING -> NEXT_SUB_GAME` transition) via
+`SubGameRuntime.run(bootstrap=False)`. A technical loss (`ERROR`) ends the
+series immediately, matching the single-sub-game contract above.
+
+`services/artifact_models.py`/`artifact_builders.py`/`artifacts.py`/
+`series_artifacts.py` (Phase 11) and `services/replay_verifier.py`/
+`replay_loader.py`/`replay_checks.py` (Phase 12) are independent
+implementations (no import of the Police repository) verified
+schema-compatible with Police's equivalents via serialized fixture
+comparison — see `integration_lab/evidence/session_recovery_step_b/
+feature_parity.md`. `sdk/game_runner.py` wires config loading, this peer's
+server, the HTTP opponent gateway, and these runtimes into
+`run_subgame_headless`/`run_series_headless`, called from `__main__.py`'s
+`run-subgame`/`run-series` (with `--artifacts-dir`) commands. **The live
+cross-process path has not been validated** (no second peer is run in any
+test this session) — see `docs/LIMITATIONS.md`.

@@ -5,52 +5,14 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-from pathlib import Path
 
 import pytest
+from _thief_series_fixtures import CFG_SHA, CONFIG, BlockingGateway, FakeGateway
 
 from thief_peer.domain.captures import SubGameResult
 from thief_peer.domain.state_machine import EventKind, PeerState, TransitionEvent
 from thief_peer.services.subgame_runtime import SubGameRuntime, make_deps
 from thief_peer.services.subgame_state import SubGameState
-from thief_peer.shared.config_loader import load_shared_config, sha256_hex
-
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "thief" / "game.json"
-CONFIG = load_shared_config(CONFIG_PATH)
-CFG_SHA = sha256_hex(CONFIG_PATH)
-
-
-class FakeGateway:
-    """A test-only opponent: acks everything, optionally injects public info."""
-
-    def __init__(self, *, reject: bool = False, opponent_turn: dict | None = None) -> None:
-        self._reject = reject
-        self._opponent_turn = opponent_turn or {}
-        self.turns_seen: list[str] = []
-
-    async def deliver_turn(self, message: dict) -> dict:
-        self.turns_seen.append(message["message_type"])
-        if self._reject:
-            return {"ok": False, "error_code": "MALFORMED", "reason": "test rejection"}
-        ack: dict = {"ok": True}
-        if message["message_type"] == "reveal":
-            ack["opponent_turn"] = self._opponent_turn
-        return ack
-
-    async def deliver_audit(self, payload: dict) -> dict:
-        return {"ok": True}
-
-
-class BlockingGateway:
-    """A test-only opponent whose ``deliver_turn`` never completes, so a
-    caller can cancel the runtime while it is genuinely suspended mid-turn
-    (used for the real-cancellation regression test below)."""
-
-    async def deliver_turn(self, message: dict) -> dict:
-        await asyncio.Event().wait()
-
-    async def deliver_audit(self, payload: dict) -> dict:
-        return {"ok": True}
 
 
 def _run(runtime: SubGameRuntime, **kw):

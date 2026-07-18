@@ -20,11 +20,7 @@ from thief_peer.infrastructure.mcp_client import (
     wait_for_health,
 )
 from thief_peer.infrastructure.mcp_server import build_peer_server
-from thief_peer.infrastructure.server_lifecycle import (
-    IntentionalShutdown,
-    run_server_managed,
-    stop_server,
-)
+from thief_peer.infrastructure.server_lifecycle import ManagedServer
 from thief_peer.shared.config_loader import load_private_config, load_shared_config, sha256_hex
 
 
@@ -57,10 +53,8 @@ async def run_negotiation_smoke(
     own_config_sha256 = sha256_hex(config_dir / shared_config_filename)
 
     mcp, inbox = build_peer_server(role, own_config_sha256)
-    shutdown = IntentionalShutdown()
-    server_task = asyncio.create_task(
-        run_server_managed(mcp, "127.0.0.1", private.network.my_port, shutdown)
-    )
+    server = ManagedServer(mcp, "127.0.0.1", private.network.my_port)
+    await server.start()
     await asyncio.sleep(startup_grace_seconds)
 
     summary: dict = {
@@ -100,7 +94,8 @@ async def run_negotiation_smoke(
         await asyncio.sleep(post_negotiation_linger_seconds)
         summary["received_declarations"] = inbox.declarations.qsize()
         summary["received_proposals"] = inbox.proposals.qsize()
-        await stop_server(server_task, shutdown)
+        shutdown = await server.stop()
+        summary["shutdown_outcome"] = shutdown.outcome.value
         summary["ended_at"] = _now_iso()
 
     return summary

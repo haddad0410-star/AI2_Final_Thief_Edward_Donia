@@ -39,8 +39,23 @@ class SubGameState:
     police_scent: ScentField | None = None
 
     @classmethod
-    def initial(cls, grid_size: int, sub_game_number: int, start: Position) -> SubGameState:
-        """Fresh state at a sub-game start: thief at `start`, uniform belief."""
+    def initial(
+        cls,
+        grid_size: int,
+        sub_game_number: int,
+        start: Position,
+        machine: PeerStateMachine | None = None,
+    ) -> SubGameState:
+        """Fresh LOCAL state at a sub-game start: thief at `start`, uniform
+        belief, empty scent/board/records/exchange/step counter.
+
+        `machine` lets a caller running a multi-sub-game series (Phase 10)
+        share ONE lifecycle state machine across sub-games -- only the
+        per-sub-game local knowledge resets, never the series-wide
+        lifecycle position. Defaults to a fresh machine (starting at
+        INITIALIZING) for a standalone single sub-game, unchanged from
+        before.
+        """
         return cls(
             grid_size=grid_size,
             sub_game_number=sub_game_number,
@@ -48,7 +63,7 @@ class SubGameState:
             board=Board(grid_size=grid_size),
             belief=uniform_prior(grid_size),
             own_scent=empty_scent_field(grid_size),
-            machine=PeerStateMachine(),
+            machine=machine if machine is not None else PeerStateMachine(),
             exchange=CommitRevealExchange(),
             visited={start},
         )

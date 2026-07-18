@@ -45,3 +45,25 @@ series, or advance readiness past `LOCAL_READY`. The phase table above still
 reflects Batch 1 status only and has not been re-audited phase-by-phase
 against the uncommitted Batch 2 work in this recovery step — that re-audit,
 plus Phases 10-12, is Recovery Step B+ work, not this step.
+
+## Session recovery step B (this session)
+
+Implemented Phases 10-12 and CLI wiring from scratch (independent
+implementation, no import of the Police repository): `services/
+series_runtime.py` (Phase 10), `services/artifact_models.py`/
+`artifact_builders.py`/`artifacts.py`/`series_artifacts.py` (Phase 11),
+`services/replay_verifier.py`/`replay_loader.py`/`replay_checks.py` (Phase
+12), and `sdk/game_runner.py` + `run-subgame`/`run-series`/`verify-replay`/
+`show-status` in `__main__.py`. Also fixed the production FastMCP/Uvicorn
+shutdown defect (see `CHANGELOG.md`) and hardened `mcp_client.py` against
+`ToolError`. Thief grew from 220 tests (step A checkpoint) to 281 tests,
+94.79% coverage. Full detail: `integration_lab/evidence/
+session_recovery_step_b/`. Still NOT implemented or run: a real
+two-process series with an actual Police opponent, the mutual cross-repo
+audit, GUI, replay viewer (Phase 10 in the table above), Gmail (Phase 12 in
+the table above), public network/league play (Phase 15), or advanced
+strategy (`EntropyEscapeThiefBrain`, Phase 7). The phase table's numbering
+above predates Batch 2 and does not line up 1:1 with the Batch-2 phase
+numbers used in `integration_lab/audit/PROGRESS.md` and the CHANGELOG —
+treat the table above as historical (Batch 1) and the CHANGELOG +
+PROGRESS.md as the current source of truth for Batch 2 status.

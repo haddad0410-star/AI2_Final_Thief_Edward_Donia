@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import asyncio
 
+from _port_utils import free_tcp_port, start_test_server, stop_test_server
+
 from thief_peer.domain.roles import Role
 from thief_peer.infrastructure.game_tools import build_game_server
 from thief_peer.infrastructure.mcp_client import (
@@ -15,16 +17,9 @@ from thief_peer.infrastructure.mcp_client import (
     call_submit_audit,
     wait_for_health,
 )
-from thief_peer.infrastructure.server_lifecycle import (
-    IntentionalShutdown,
-    run_server_managed,
-    stop_server,
-)
 
 UID = "uid-e2e"
 CFG = "e" * 64
-PORT = 18991
-URL = f"http://127.0.0.1:{PORT}/mcp"
 
 
 def _env(step: int, cid: str) -> dict:
@@ -43,11 +38,12 @@ def _env(step: int, cid: str) -> dict:
 
 def test_full_turn_lifecycle_over_http() -> None:
     async def scenario() -> None:
+        port = free_tcp_port()
+        url = f"http://127.0.0.1:{port}/mcp"
         mcp, router = build_game_server(Role.THIEF, game_uid=UID, config_sha256=CFG)
-        shutdown = IntentionalShutdown()
-        task = asyncio.create_task(run_server_managed(mcp, "127.0.0.1", PORT, shutdown))
+        server = await start_test_server(mcp, port)
         try:
-            await wait_for_health(URL, attempts=15, delay_seconds=0.3)
+            await wait_for_health(url, attempts=15, delay_seconds=0.3)
             commit = {
                 "envelope": _env(0, "c0"),
                 "message_type": "commitment",
@@ -60,16 +56,16 @@ def test_full_turn_lifecycle_over_http() -> None:
                 "hint_text": "the eastern district feels wrong",
                 "hint_intent": "lie",
             }
-            assert (await call_receive_turn(URL, commit))["ok"] is True
-            assert (await call_receive_turn(URL, ack))["ok"] is True
-            assert (await call_receive_turn(URL, reveal))["ok"] is True
+            assert (await call_receive_turn(url, commit))["ok"] is True
+            assert (await call_receive_turn(url, ack))["ok"] is True
+            assert (await call_receive_turn(url, reveal))["ok"] is True
             # receive_move alias hits the same path (next step's commitment).
             move_msg = {
                 "envelope": _env(1, "c1"),
                 "message_type": "commitment",
                 "commit_hash": "b" * 64,
             }
-            assert (await call_receive_turn(URL, move_msg))["ok"] is True
+            assert (await call_receive_turn(url, move_msg))["ok"] is True
 
             audit = {
                 "envelope": _env(0, "au"),
@@ -77,12 +73,12 @@ def test_full_turn_lifecycle_over_http() -> None:
                 "records": [],
                 "result_claim": "survival",
             }
-            assert (await call_submit_audit(URL, audit))["ok"] is True
+            assert (await call_submit_audit(url, audit))["ok"] is True
             ctrl = {"envelope": _env(0, "ct"), "kind": "status", "status_text": "ready"}
-            assert (await call_receive_control(URL, ctrl))["ok"] is True
+            assert (await call_receive_control(url, ctrl))["ok"] is True
             assert router.turn_inbox.size() == 4
         finally:
-            await stop_server(task, shutdown)
+            await stop_test_server(server)
 
     asyncio.run(scenario())
 
