@@ -1,150 +1,118 @@
-"""Step-0 peer declaration (Batch 2 Phase 5, book Ch.5.5).
+"""Step-0 peer declaration (Batch 2 Phase 5, book Ch.5.5; canonical schema
+frozen in session recovery step C -- see docs/schemas/declaration.schema.json,
+byte-identical to the Police repo's copy, resolving risk #14's field-name
+divergence).
 
-Assembles the identity + provenance + hardware record that both peers seal and
-exchange before the first move, so a stronger machine or a different code version
-cannot be substituted mid-series undetected. This module does NOT own game-id
-derivation (the caller fills ``game_id``/``game_uid``); it never fabricates
-hardware values (see :mod:`thief_peer.domain.hardware`) and carries no secrets.
+Carries no credentials or secrets. Parsing (``from_dict``, alias
+normalization) lives in ``declaration_parsing.py``; assembly from live
+inputs lives in ``declaration_builder.py``; mismatch-checking lives in
+``declaration_checks.py`` -- split out to stay under the 150-line cap.
 """
 
 from __future__ import annotations
 
-import subprocess
-import tomllib
-from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
-from pathlib import Path
+from dataclasses import dataclass
+from typing import Any
 
-from thief_peer.domain.hardware import HardwareInfo, probe_hardware
+from thief_peer.domain.hardware import HardwareInfo
 from thief_peer.shared.errors import SchemaValidationError
-from thief_peer.shared.private_config import PrivateGameConfig
 
+SCHEMA_VERSION = "declaration/2"
 
-def git_commit_hash(repo_root: Path) -> str:
-    """The exact current commit of THIS repo via ``git rev-parse HEAD``.
+#: declaration/1-era field names accepted as unambiguous input aliases,
+#: normalized immediately to the canonical declaration/2 name. Never
+#: emitted by to_dict() -- canonical output uses exactly one name per field.
+ALIASES = {"commit_hash": "git_commit", "config_sha256": "shared_config_sha256"}
 
-    Actually runs the subprocess against ``repo_root``; returns "unknown" (never
-    a fabricated hash) if git is unavailable or the directory is not a repo."""
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else "unknown"
-    except (OSError, subprocess.SubprocessError):
-        return "unknown"
+HARDWARE_FIELDS = (
+    "operating_system", "platform_detail", "python_version", "cpu_model",
+    "cpu_model_status", "cpu_cores", "ram_gb", "ram_status", "gpu_model",
+    "gpu_available", "gpu_status", "vram_gb", "vram_status",
+)  # fmt: skip
 
-
-def code_version(repo_root: Path) -> str:
-    """Read ``[project].version`` from this repo's pyproject.toml."""
-    try:
-        data = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
-        return str(data.get("project", {}).get("version", "0.0.0"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return "0.0.0"
+TOP_LEVEL_FIELDS = (
+    "schema_version", "game_id", "game_uid", "role", "group_id", "group_name",
+    "members", "police_repository", "thief_repository", "police_mcp_url",
+    "thief_mcp_url", "timezone", "timestamp", "token_budget", "num_sub_games",
+    "shared_config_sha256", "code_version", "git_commit", "strategy_class",
+    "banter_provider", "hardware", "content_sha256",
+)  # fmt: skip
 
 
 @dataclass(frozen=True, slots=True)
 class PeerDeclaration:
-    """The full Step-0 declaration for one peer (whole series)."""
+    """The full, canonical Step-0 declaration for one peer (whole series)."""
 
     schema_version: str
     game_id: str
     game_uid: str
     role: str
-    group_name: str
     group_id: str
+    group_name: str
     members: tuple[str, ...]
-    repository: str
-    code_version: str
-    commit_hash: str
-    strategy_class: str
-    banter_provider: str
-    token_budget: int
+    police_repository: str
+    thief_repository: str
+    police_mcp_url: str
+    thief_mcp_url: str
     timezone: str
     timestamp: str
-    config_sha256: str
-    hardware: HardwareInfo = field(default_factory=probe_hardware)
+    token_budget: int
+    num_sub_games: int
+    shared_config_sha256: str
+    code_version: str
+    git_commit: str
+    strategy_class: str
+    banter_provider: str
+    hardware: HardwareInfo
+    content_sha256: str
 
-    def to_canonical_dict(self) -> dict:
-        """A JSON-serializable dict (for canonicalization + sealing)."""
-        data = asdict(self)
-        data["members"] = list(self.members)
-        return data
-
-    def to_dict(self) -> dict:
-        """Alias satisfying the artifact-save protocol (Phase 11) -- this
-        declaration is saved as declaration_<game_id>.json via the same
-        ``services.artifacts.save_artifact`` every other artifact uses."""
-        return self.to_canonical_dict()
+    def to_dict(self) -> dict[str, Any]:
+        """Canonical JSON-safe dict -- exactly one key per field, never an alias."""
+        return {
+            "schema_version": self.schema_version,
+            "game_id": self.game_id,
+            "game_uid": self.game_uid,
+            "role": self.role,
+            "group_id": self.group_id,
+            "group_name": self.group_name,
+            "members": list(self.members),
+            "police_repository": self.police_repository,
+            "thief_repository": self.thief_repository,
+            "police_mcp_url": self.police_mcp_url,
+            "thief_mcp_url": self.thief_mcp_url,
+            "timezone": self.timezone,
+            "timestamp": self.timestamp,
+            "token_budget": self.token_budget,
+            "num_sub_games": self.num_sub_games,
+            "shared_config_sha256": self.shared_config_sha256,
+            "code_version": self.code_version,
+            "git_commit": self.git_commit,
+            "strategy_class": self.strategy_class,
+            "banter_provider": self.banter_provider,
+            "hardware": hardware_to_dict(self.hardware),
+            "content_sha256": self.content_sha256,
+        }
 
     def validate(self) -> None:
-        """Self-consistency check before this declaration is saved as an
-        artifact -- mirrors the other three artifact models' minimal
-        ``validate()`` contract."""
         if not self.group_id or not self.group_name:
             raise SchemaValidationError("declaration needs group_id and group_name")
-        if len(self.config_sha256) != 64:
-            raise SchemaValidationError("config_sha256 must be a 64-char digest")
+        if len(self.shared_config_sha256) != 64:
+            raise SchemaValidationError("shared_config_sha256 must be a 64-char digest")
+        if self.schema_version != SCHEMA_VERSION:
+            raise SchemaValidationError(f"unsupported schema_version {self.schema_version!r}")
+        if self.role not in ("police", "thief"):
+            raise SchemaValidationError(f"role must be police or thief, got {self.role!r}")
+        if self.num_sub_games < 1:
+            raise SchemaValidationError("num_sub_games must be >= 1")
+        if len(self.content_sha256) != 64:
+            raise SchemaValidationError("content_sha256 must be a 64-char digest")
+
+    @classmethod
+    def from_dict(cls, data: dict) -> PeerDeclaration:
+        from thief_peer.domain.declaration_parsing import parse_declaration
+
+        return parse_declaration(data)
 
 
-def declaration_mismatches(
-    declaration: PeerDeclaration,
-    *,
-    expected_config_sha256: str,
-    expected_group_id: str,
-    expected_schema_version: str = "declaration/1",
-) -> tuple[str, ...]:
-    """Return a tuple of human-readable mismatch reasons (empty == compatible).
-
-    Detects the three refuse-to-play conditions: a config-hash mismatch (the two
-    peers do not hold byte-identical terms), an identity mismatch, and a schema
-    version mismatch."""
-    problems: list[str] = []
-    if declaration.config_sha256 != expected_config_sha256:
-        problems.append("config_sha256 mismatch")
-    if declaration.group_id != expected_group_id:
-        problems.append("identity (group_id) mismatch")
-    if declaration.schema_version != expected_schema_version:
-        problems.append("schema version mismatch")
-    return tuple(problems)
-
-
-def build_declaration(
-    private: PrivateGameConfig,
-    token_budget: int,
-    config_sha256: str,
-    repo_root: Path,
-    *,
-    game_id: str = "",
-    game_uid: str = "",
-    hardware: HardwareInfo | None = None,
-    now: datetime | None = None,
-) -> PeerDeclaration:
-    """Assemble a thief PeerDeclaration from private config + live provenance.
-
-    ``game_id``/``game_uid`` are placeholders the caller fills after id
-    derivation. Hardware is probed live unless injected (tests inject it)."""
-    stamp = now or datetime.now(UTC)
-    return PeerDeclaration(
-        schema_version="declaration/1",
-        game_id=game_id,
-        game_uid=game_uid,
-        role="thief",
-        group_name=private.game.group_name,
-        group_id=private.game.group_id,
-        members=tuple(private.game.members),
-        repository=private.game.repos.get("thief", "local-placeholder://thief_peer"),
-        code_version=code_version(repo_root),
-        commit_hash=git_commit_hash(repo_root),
-        strategy_class=private.strategy.thief_class,
-        banter_provider=private.trash_talk.provider,
-        token_budget=token_budget,
-        timezone=str(stamp.tzinfo),
-        timestamp=stamp.isoformat(),
-        config_sha256=config_sha256,
-        hardware=hardware if hardware is not None else probe_hardware(),
-    )
+def hardware_to_dict(hw: HardwareInfo) -> dict[str, Any]:
+    return {name: getattr(hw, name) for name in HARDWARE_FIELDS}

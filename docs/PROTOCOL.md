@@ -20,9 +20,11 @@ summarizes only what's specific to running this repo as the Thief side.
   and wired into `run-series --artifacts-dir`; verified byte-identical in
   schema (config/log/result) to the independently-built Police repo's
   artifacts via serialized fixture comparison. The Step-0 declaration
-  schema is NOT yet cross-repo-compatible (different field names and
-  hardware-field shape) — see `integration_lab/audit/risk_register.md`
-  risk #14.
+  schema is now frozen and cross-repo-compatible as canonical
+  `declaration/2` (session recovery step C, Task 2 — see
+  `docs/schemas/declaration.schema.json`,
+  `integration_lab/audit/protocol_contract.md` §3.4a, and
+  `integration_lab/audit/risk_register.md` risk #14, now resolved).
 - Real two-process negotiation evidence: `integration_lab/evidence/negotiation_smoke/`
   (actual stdout/stderr/exit codes from two independently-launched OS processes).
   A real two-process full game/series has NOT been run yet (explicitly out

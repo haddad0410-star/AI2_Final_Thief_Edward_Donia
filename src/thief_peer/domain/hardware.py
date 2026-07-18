@@ -17,19 +17,27 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class HardwareInfo:
-    """A snapshot of this machine, with per-field availability status."""
+    """A snapshot of this machine, with per-field availability status.
+
+    Field set frozen against `docs/schemas/declaration.schema.json`
+    (session recovery step C, resolving risk #14) -- byte-identical to the
+    Police repo's `HardwareInfo`, including the explicit `gpu_available`
+    flag and `vram_status`, which this dataclass previously lacked.
+    """
 
     operating_system: str
     platform_detail: str
     python_version: str
-    cpu_cores: int | None
     cpu_model: str | None
     cpu_model_status: str
+    cpu_cores: int | None
     ram_gb: float | None
     ram_status: str
     gpu_model: str | None
-    vram_gb: float | None
+    gpu_available: bool
     gpu_status: str
+    vram_gb: float | None
+    vram_status: str
 
 
 def _probe_cpu_model() -> tuple[str | None, str]:
@@ -89,6 +97,8 @@ def probe_hardware() -> HardwareInfo:
         ram_gb=ram_gb,
         ram_status=ram_status,
         gpu_model=None,
-        vram_gb=None,
+        gpu_available=False,
         gpu_status="unavailable: no reliable cross-platform GPU/VRAM probe",
+        vram_gb=None,
+        vram_status="unavailable: no reliable cross-platform GPU/VRAM probe",
     )

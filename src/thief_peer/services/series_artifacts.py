@@ -12,7 +12,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from thief_peer.domain.declaration import build_declaration, git_commit_hash
+from thief_peer.domain.declaration_builder import (
+    DeclarationContext,
+    build_declaration,
+    git_commit_hash,
+)
 from thief_peer.domain.sealing import audit_sealed_records
 from thief_peer.services.artifact_builders import (
     build_config_artifact,
@@ -48,12 +52,20 @@ def write_series_artifacts(
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     terms = json.loads((config_dir / "game.json").read_text(encoding="utf-8"))
     commit = git_commit_hash(REPO_ROOT)
-    token_budget = terms.get("network_and_league", {}).get("token_budget_per_series", 0)
+    league = terms.get("network_and_league", {})
     written: list[Path] = []
 
-    declaration = build_declaration(
-        private, token_budget, config_sha256, REPO_ROOT, game_id=game_id, game_uid=game_uid
+    context = DeclarationContext(
+        role="thief",
+        game_id=game_id,
+        game_uid=game_uid,
+        token_budget=league.get("token_budget_per_series", 0),
+        num_sub_games=league.get("num_games", len(series.sub_games)),
+        config_sha256=config_sha256,
+        my_mcp_url=f"http://127.0.0.1:{private.network.my_port}/mcp",
+        opponent_mcp_url=private.network.opponent_url,
     )
+    declaration = build_declaration(private, context, REPO_ROOT)
     written.append(save_artifact(declaration, artifacts_dir / declaration_filename(game_id)))
 
     for record, run_result in zip(series.sub_games, series.run_results, strict=True):
