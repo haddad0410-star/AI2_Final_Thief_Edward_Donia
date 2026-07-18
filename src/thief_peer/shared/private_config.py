@@ -34,6 +34,14 @@ class TrashTalkConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class StrategyConfig:
+    """Private choice of move-selection brain (Appendix F Table 22 style
+    ``package.module:ClassName``). Defaults to the baseline thief brain."""
+
+    thief_class: str = "thief_peer.strategy.baseline_thief_brain:BaselineThiefBrain"
+
+
+@dataclass(frozen=True, slots=True)
 class EmailConfig:
     recipient: str = ""
     mode: str = "disabled"
@@ -49,6 +57,8 @@ class PrivateGameConfig:
     network: NetworkPrivate
     trash_talk: TrashTalkConfig
     email: EmailConfig
+    strategy: StrategyConfig
+    seed: int
 
     @classmethod
     def from_dict(cls, data: dict) -> PrivateGameConfig:
@@ -81,10 +91,19 @@ class PrivateGameConfig:
                 "credentials_dir_env_var", "GMAIL_CREDENTIALS_DIR"
             ),
         )
+        strategy_raw = data.get("strategy", {})
+        strategy = (
+            StrategyConfig(thief_class=strategy_raw["thief_class"])
+            if strategy_raw.get("thief_class")
+            else StrategyConfig()
+        )
+        seed = int(data.get("play", {}).get("seed", 0))
         return cls(
             version=str(data.get("version", "0.0.0")),
             game=game,
             network=network,
             trash_talk=trash_talk,
             email=email,
+            strategy=strategy,
+            seed=seed,
         )

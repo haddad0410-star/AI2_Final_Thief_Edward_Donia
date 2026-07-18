@@ -19,6 +19,17 @@ Define local game physics: board, movement, barriers, scoring, series structure.
 - [x] Scoring unit tests match the table above exactly — `domain/scoring.py`, `tests/unit/test_scoring.py` (4 tests).
 - [ ] A 6-sub-game series runs to completion locally — not yet; Batch 1 only proves a single negotiation handshake (`integration_lab/evidence/negotiation_smoke/`), not a played sub-game.
 
+## Turn-cap vs. real outcomes (Batch 2, session recovery step A)
+
+`survival_threshold` (from the binding shared `game.json`) is the only source
+of truth for how many turns a real sub-game plays before survival is scored.
+A local/test `max_turns` cap smaller than that is not a game rule and must
+never be reported as a real survival or capture outcome: `SubGameRuntime`
+scores it as an explicit `TECHNICAL_LOSS` with no audit, distinct from a
+protocol-error technical loss only by its `reason` string
+(`"turn cap exhausted before a natural sub-game outcome"`). See
+`docs/ARCHITECTURE.md` for the full exit-path table.
+
 ## Out of scope (for now)
 
 Scent/belief model (see PRD_scent_belief.md — now implemented). Cryptographic sealing

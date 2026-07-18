@@ -5,6 +5,38 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed — Session recovery step A
+
+- `services/subgame_runtime.py::SubGameRuntime.run()` — a caller-supplied
+  `max_turns` smaller than the configured `survival_threshold` (only
+  reachable via an explicit test/caller cap, never the default production
+  cap) let the turn loop exhaust without reaching a legal terminal state,
+  so `_finalize()`'s `state is not ERROR` check let a `WAITING` state
+  through to an illegal `BEGIN_AUDIT` transition
+  (`IllegalTransitionError: no transition from waiting on begin_audit`).
+  Added `SubGameRuntime.abort(reason)` as the single shared path for both
+  this case and an external cancellation mid-run: it forces the state
+  machine to `ERROR` (a legal transition from any non-terminal state) and
+  finalizes as an explicit `TECHNICAL_LOSS` with no audit, so an
+  artificially-capped or cancelled sub-game can never be reported as a
+  completed, audited game. `run()` now also catches `asyncio.CancelledError`
+  to call `abort()` before re-raising, so cancellation is never silently
+  swallowed and the state machine always ends in a legal state. See
+  `docs/ARCHITECTURE.md` ("Sub-game exit and audit transition") and
+  `integration_lab/evidence/session_recovery_step_a/thief_state_fix/`.
+- `services/outcomes.py` — removed `dataclasses.field`, imported but never
+  used (both dataclasses use plain immutable defaults, e.g. `records:
+  tuple[...] = ()`, which need no `field(default_factory=...)`). Confirmed
+  no other file in the diff needed it either; `ruff check .` is clean.
+- Ran `ruff format .` across both new (previously unformatted) Batch 2
+  source/test files and confirmed, by diffing against the pre-session
+  patch in `integration_lab/evidence/session_recovery/thief_partial.patch`,
+  that the three previously-tracked files it touched
+  (`infrastructure/mcp_client.py`, `sdk/negotiation_runner.py`,
+  `shared/private_config.py`) came out byte-identical to their state before
+  this session — i.e. `ruff format` changed nothing in them at all;
+  formatting only applied to the new, previously-unformatted files.
+
 ### Added — Implementation Batch 1
 - Configuration: `shared/{errors,config_sections,config_validation,config_models,
   private_config,rate_limits_model,config_loader,canonical_json}.py` — loads and

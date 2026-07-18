@@ -26,3 +26,22 @@
 
 Do not mark a task DONE before its evidence file exists — see `CLAUDE.md`'s
 no-fabricated-evidence rule.
+
+## Session recovery step A (this session)
+
+The Batch 2 background agent for this repo was killed mid-run by
+infrastructure failures (not task-logic failures) with a large amount of
+uncommitted Phase 3-9-range work in progress — but explicitly **without**
+Phases 10-12 (series runtime, artifact generator, replay verifier) or the
+`run-subgame`/`run-series`/`verify-replay` CLI wiring, none of which exist in
+this repo yet (see `integration_lab/evidence/session_recovery/
+recovery_notes.md`). This recovery step fixed only the one specific bug that
+agent was mid-fix on (an illegal `WAITING -> BEGIN_AUDIT` state transition
+when a caller-supplied turn cap is smaller than the configured
+`survival_threshold` — see `integration_lab/evidence/
+session_recovery_step_a/thief_state_fix/`) plus a Ruff unused-import fix and
+quality gates; it did not implement Phases 10-12, run a real two-process
+series, or advance readiness past `LOCAL_READY`. The phase table above still
+reflects Batch 1 status only and has not been re-audited phase-by-phase
+against the uncommitted Batch 2 work in this recovery step — that re-audit,
+plus Phases 10-12, is Recovery Step B+ work, not this step.

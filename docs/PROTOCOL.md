@@ -19,3 +19,10 @@ summarizes only what's specific to running this repo as the Thief side.
   `result_<game_id>.json`. Not implemented yet (later batch).
 - Real two-process negotiation evidence: `integration_lab/evidence/negotiation_smoke/`
   (actual stdout/stderr/exit codes from two independently-launched OS processes).
+- Sub-game lifecycle (Batch 2): `submit_audit`'s local counterpart,
+  `BEGIN_AUDIT`, is only ever driven from `SUB_GAME_OVER` — a real capture or
+  survival outcome. A protocol error, a caller-supplied turn cap smaller than
+  `survival_threshold`, or an external cancellation all route through `ERROR`
+  instead (`SubGameRuntime.abort()`), so this peer can never submit an audit
+  for a sub-game it did not actually finish. See `docs/ARCHITECTURE.md`
+  ("Sub-game exit and audit transition") for the full state table.

@@ -30,6 +30,33 @@ verify_isolation_output.json`).
 
 ## State machine
 
-See `docs/PLAN.md`. Not implemented yet — Batch 1 only proves a real two-process
-FastMCP HTTP handshake (health/negotiate/config-hash-compare/ack/shutdown); the
-full turn-by-turn state machine lives in `services/` in a later batch.
+See `docs/PLAN.md`. Batch 1 proved only the two-process FastMCP HTTP handshake;
+the full turn-by-turn state machine (`domain/state_machine/`) and the sub-game
+runtime that drives it (`services/subgame_runtime.py`) were added in Batch 2.
+
+### Sub-game exit and audit transition (Batch 2, session recovery step A)
+
+`BEGIN_AUDIT` is legal from exactly one state: `SUB_GAME_OVER` (reached only via
+`VERIFYING --SUB_GAME_ENDED--> SUB_GAME_OVER`, i.e. a real capture or a real
+survival-threshold outcome). `SubGameRuntime._finalize()` only runs the audit
+when the machine is not in `ERROR`, so every non-`SUB_GAME_OVER` exit must reach
+`ERROR` first — never `BEGIN_AUDIT` from anywhere else.
+
+`SubGameRuntime.run()` has exactly one legal exit for each way a sub-game can
+stop:
+
+| How it stops | State-machine path | Result | Audited? |
+|---|---|---|---|
+| Capture | `VERIFYING -> SUB_GAME_OVER -> AUDITING` | `CAPTURE` | Yes |
+| Survival threshold reached | `VERIFYING -> SUB_GAME_OVER -> AUDITING` | `SURVIVAL` | Yes |
+| Protocol error (opponent malformed/unreachable) | any non-terminal state `-> ERROR` (`run_turn`'s own handler) | `TECHNICAL_LOSS` | No |
+| A caller-supplied `max_turns` smaller than what `survival_threshold` needs (test/local cap only — unreachable with the default, production cap) | `SubGameRuntime.abort()` forces `-> ERROR` | `TECHNICAL_LOSS` | No |
+| External cancellation (deadline/watchdog abort while `WAITING`, `THINKING`, or mid-turn) | `SubGameRuntime.abort()` forces `-> ERROR`, then the `CancelledError` is re-raised (never swallowed) | `TECHNICAL_LOSS` (recorded on the runtime; the coroutine itself does not return a value) | No |
+
+`SubGameRuntime.abort(reason)` is the single shared mechanism for the last two
+rows: it forces `ERROR` (if not already there) and finalizes as an explicit
+`TECHNICAL_LOSS`, so an artificially-capped or cancelled sub-game can never be
+reported as a completed, audited game. See `integration_lab/evidence/
+session_recovery_step_a/thief_state_fix/` for the bug this replaced (a bare
+`state_machine.state is not ERROR` check let a WAITING state through to an
+illegal `BEGIN_AUDIT`) and the regression tests added.
