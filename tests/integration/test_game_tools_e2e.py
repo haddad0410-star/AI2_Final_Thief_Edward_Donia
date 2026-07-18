@@ -53,8 +53,13 @@ def test_full_turn_lifecycle_over_http() -> None:
             reveal = {
                 "envelope": _env(0, "r0"),
                 "message_type": "reveal",
-                "hint_text": "the eastern district feels wrong",
-                "hint_intent": "lie",
+                "reveal": {
+                    "move": "N",
+                    "hint": "the eastern district feels wrong",
+                    "intent": "lie",
+                    "barrier_placed": None,
+                    "win_claim": False,
+                },
             }
             assert (await call_receive_turn(url, commit))["ok"] is True
             assert (await call_receive_turn(url, ack))["ok"] is True

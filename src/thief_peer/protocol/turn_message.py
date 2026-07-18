@@ -23,11 +23,16 @@ MESSAGE_TYPES: frozenset[str] = frozenset(
     }
 )
 
-#: Type-specific required fields (in addition to the envelope).
+#: Type-specific required fields (in addition to the envelope). ``reveal``'s
+#: payload (move/hint/barrier/win_claim/...) is nested under a single
+#: ``reveal`` key -- matching the opponent's own wire shape (session recovery
+#: step C, Task 5) -- so only that key's presence is checked here; its own
+#: internal shape is whatever ``SealedTurnPayload.public_reveal_dict()``
+#: produces on either side.
 _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "commitment": ("commit_hash",),
     "commit_ack": ("commit_hash",),
-    "reveal": ("hint_text", "hint_intent"),
+    "reveal": ("reveal",),
     "hint": ("hint_text", "hint_intent"),
     "scent": ("grid_size", "grid"),
     "barrier": ("cell_row", "cell_col"),
@@ -35,8 +40,13 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "capture_response": ("caught",),
 }
 
+#: ``correlation_id`` is deliberately NOT required here: it is an optional
+#: dedup aid (``turn_router.py`` and ``inbox.py`` both treat a missing one as
+#: ``""`` and skip correlation-based tracking gracefully), and the Police
+#: repo's own envelope builder never sends one at all (session recovery
+#: step C, Task 5) -- requiring it here would reject every otherwise-valid
+#: message from a compatible, independently-implemented opponent.
 _ENVELOPE_FIELDS = (
-    "correlation_id",
     "game_uid",
     "sub_game_number",
     "step",
@@ -61,6 +71,8 @@ def structural_reason(message: dict) -> str | None:
     for field in _REQUIRED_FIELDS[message_type]:
         if field not in message:
             return f"{message_type} message missing field: {field}"
-    if message_type in ("reveal", "hint") and message.get("hint_intent") not in ("truth", "lie"):
+    if message_type == "hint" and message.get("hint_intent") not in ("truth", "lie"):
         return "hint_intent must be 'truth' or 'lie'"
+    if message_type == "reveal" and not isinstance(message.get("reveal"), dict):
+        return "reveal field must be an object"
     return None

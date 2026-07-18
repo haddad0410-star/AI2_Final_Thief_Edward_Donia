@@ -5,6 +5,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed — Session recovery step C
+
+- Declaration schema frozen as canonical, versioned `declaration/2`
+  (resolves `integration_lab/audit/risk_register.md` risk #14).
+  `domain/declaration.py` rewritten and split (150-line cap) into
+  `declaration.py` (dataclass/to_dict/validate), `declaration_parsing.py`
+  (`parse_declaration`, strict allow-list, alias normalization),
+  `declaration_builder.py` (`DeclarationContext`/`build_declaration`, plus
+  `git_commit_hash`/`code_version` moved in), `declaration_checks.py`
+  (`declaration_mismatches`, split out). `domain/hardware.py`'s
+  `HardwareInfo` gained `gpu_available`/`vram_status` (never fabricated —
+  `None` + explanatory status when unavailable; `vram_gb` already existed).
+  New `content_sha256` commitment field. `services/series_artifacts.py`
+  updated to the new `DeclarationContext` call site.
+  `declaration/1`-era aliases (`commit_hash`, `config_sha256`) accepted on
+  input only, normalized, rejected if ambiguous. Canonical JSON Schema
+  published at `docs/schemas/declaration.schema.json`, byte-identical
+  (SHA-256 `a995d657e81ed920f87f3ef39c3281550d346f38c18468cf7fdee79cd42a97bd`)
+  to the independently-built Police repo's copy; cross-repo fixture
+  equivalence verified by
+  `integration_lab/scripts/compare_declaration_schemas.py`. 22 tests in
+  `tests/unit/test_declaration.py`. 281 -> 292 tests, both Ruff/format
+  clean. See
+  `integration_lab/evidence/session_recovery_step_c/task2_declaration_schema/`
+  and `.../declaration_schema_audit.md`.
+
 ### Added — Session recovery step B
 
 - `services/series_runtime.py` (Phase 10): six-sub-game series runtime.

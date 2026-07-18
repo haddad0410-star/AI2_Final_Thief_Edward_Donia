@@ -84,5 +84,7 @@ feature_parity.md`. `sdk/game_runner.py` wires config loading, this peer's
 server, the HTTP opponent gateway, and these runtimes into
 `run_subgame_headless`/`run_series_headless`, called from `__main__.py`'s
 `run-subgame`/`run-series` (with `--artifacts-dir`) commands. **The live
-cross-process path has not been validated** (no second peer is run in any
-test this session) — see `docs/LIMITATIONS.md`.
+cross-process path is now validated for real** (session recovery step C: a
+real one-sub-game and a real six-sub-game two-process series against the
+Police repo, both over real FastMCP HTTP) — see
+`integration_lab/evidence/session_recovery_step_c/` and `docs/LIMITATIONS.md`.

@@ -16,29 +16,33 @@ Current, honest state as of this scaffold (Phase 1-2, no application code writte
 This file will be kept current every phase — never allowed to go stale while claiming
 a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
 
-## Current state (session recovery step B)
+## Current state (session recovery step C)
 
 - Implemented and independently verified: config loading, domain
   models/board physics, scent/belief, protocol schemas, commit-reveal
-  sealing, Step-0 declaration, state machine, deadline tracker, watchdog,
-  baseline strategy brain, template hints, sub-game runtime, and — new this
-  session — series runtime, JSON artifact generation, headless replay
-  verifier, and full CLI wiring.
+  sealing, canonical `declaration/2` Step-0 declaration, state machine,
+  deadline tracker, watchdog, baseline strategy brain, template hints,
+  sub-game runtime, series runtime, JSON artifact generation, headless
+  replay verifier, and full CLI wiring.
+- **New this step**: a real two-process game/series against the actual
+  Police opponent (one sub-game and a full six-sub-game series, both over
+  real FastMCP HTTP), and the mutual cross-repo artifact/audit comparison
+  (96/96 checks passed) — both previously unimplemented/unrun, now done.
+  Six real cross-repo protocol/wiring defects were found and fixed only by
+  actually running two independent processes against each other — see
+  `CHANGELOG.md` and `integration_lab/audit/risk_register.md` risks #15-#16.
 - **Still not implemented or run**: `EntropyEscapeThiefBrain` (only the
   from-scratch baseline exists), a live GUI, a replay *viewer* (the
-  headless verifier exists; a visual viewer does not), Gmail reporting, a
-  real two-process game/series against an actual opponent, the mutual
-  cross-repo audit, public network exposure/tunnel, and league play.
-- The live cross-process path for `run-subgame`/`run-series` has not been
-  validated (no second peer is run in any test this session) — matches the
-  same caveat already carried by the sibling Police repo's
-  `sdk/game_runner.py` docstring.
-- A genuine, pre-existing schema divergence between this repo's and the
-  Police repo's Step-0 declaration (field names and hardware-field shape)
-  was found this session via serialized fixture comparison and is
-  unresolved — see `integration_lab/audit/risk_register.md` risk #14. It
-  will block a byte-level declaration exchange until resolved.
+  headless verifier exists; a visual viewer does not), Gmail reporting,
+  public network exposure/tunnel, and league play.
+- The live cross-process path for `run-subgame`/`run-series` **is now
+  validated** — see `integration_lab/evidence/session_recovery_step_c/`.
+- The declaration schema divergence between this repo and the Police repo
+  (risk #14) is **resolved** — canonical `declaration/2`, verified
+  byte-identical fixtures.
 - `pheromone_min_center_intensity=0.5` remains unconfirmed as binding (risk
   #2, unchanged from Batch 1).
 - Repository visibility/licensing consent (Manual Gate E) remains
   unresolved, unchanged from Batch 1.
+- Readiness: `LOCAL_READY` (session recovery step C). `NETWORK_READY`/
+  `LEAGUE_READY`/`SUBMISSION_READY` not claimed.

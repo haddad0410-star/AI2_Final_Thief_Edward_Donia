@@ -6,10 +6,11 @@ into two async entrypoints. Business logic lives here (not in ``__main__``)
 per CLAUDE.md. Independent implementation (no import of the Police
 repository).
 
-NOTE: the live cross-process path has not been validated in this task (no
-second peer is run here, and Recovery Step B explicitly defers the real
-two-process series); see docs/LIMITATIONS.md. The runtimes it drives ARE
-covered by tests against in-process fakes.
+The live cross-process path was validated for real in session recovery step C
+(Task 5): two independent OS processes, real HTTP, real commit-reveal, ending
+in a genuine capture/survival/technical-loss outcome -- see
+integration_lab/evidence/session_recovery_step_c/one_subgame/. The runtimes
+it drives are also covered by tests against in-process fakes.
 """
 
 from __future__ import annotations
@@ -54,8 +55,8 @@ async def run_subgame_headless(config_dir: Path, opponent_url: str) -> dict:
     """Run one sub-game against a live opponent server; return a JSON-safe summary."""
     shared, private, config_sha, game_id, game_uid = _load(config_dir)
     machine = PeerStateMachine()
-    server, _router = await _serve(config_sha, game_uid, machine, private.network.my_port)
-    gateway = HttpOpponentGateway(opponent_url)
+    server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
+    gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
     deps = make_deps(shared, gateway, game_uid, config_sha, seed=private.seed)
     try:
         result = await SubGameRuntime(deps, machine=machine).run()
@@ -91,10 +92,10 @@ async def run_series_headless(
     if smoke:
         print("SMOKE TEST ONLY: running a single sub-game, not the full 6-game series.")
     machine = PeerStateMachine()
-    server, _router = await _serve(config_sha, game_uid, machine, private.network.my_port)
+    server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
 
     def deps_factory(index: int) -> SubGameDeps:
-        gateway = HttpOpponentGateway(opponent_url)
+        gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
         return make_deps(shared, gateway, game_uid, config_sha, seed=private.seed + index)
 
     try:

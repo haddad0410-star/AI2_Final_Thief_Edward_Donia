@@ -72,3 +72,17 @@ class BoundedInbox:
         while not self._queue.empty():
             items.append(self._queue.get_nowait())
         return items
+
+    def pop_matching(self, predicate) -> dict | None:
+        """Remove and return the first currently-queued message satisfying
+        ``predicate(message)``, re-enqueuing every other item in its original
+        order. Returns ``None`` if nothing currently queued matches (the
+        caller is expected to poll again after a short delay -- this never
+        blocks)."""
+        match: dict | None = None
+        for item in self.drain():
+            if match is None and predicate(item.message):
+                match = item.message
+                continue
+            self._queue.put_nowait(item)
+        return match

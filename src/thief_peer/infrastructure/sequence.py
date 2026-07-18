@@ -1,18 +1,29 @@
 """SequenceTracker: per-sub-game turn ordering guard (Batch 2 Phase 6).
 
-Enforces that the core commit-reveal phases arrive in order
-(commitment -> commit_ack -> reveal) and that steps advance by exactly one, so a
-stale step, a skipped step, and an out-of-order reveal are all rejected. It is
-only ever fed genuinely-new messages (the router filters idempotent replays
-first), so accepting a message advances the tracker's state.
+Enforces that the core commit-reveal phases arrive in order (commitment ->
+reveal) and that steps advance by exactly one, so a stale step, a skipped
+step, and an out-of-order reveal are all rejected. It is only ever fed
+genuinely-new messages (the router filters idempotent replays first), so
+accepting a message advances the tracker's state.
+
+Per ``protocol_contract.md`` section 3.3, book Fig.6's "Acknowledge" step is
+the synchronous FastMCP tool-call response to the commitment delivery itself
+(both this repo's and the Police repo's real turn loops treat it that way --
+neither ever sends a separate, discriminated ``commit_ack`` message type), so
+no third core phase is tracked here.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-_CORE_PHASE_INDEX = {"commitment": 0, "commit_ack": 1, "reveal": 2}
-_AUX_TYPES = frozenset({"hint", "scent", "barrier", "capture_claim", "capture_response"})
+_CORE_PHASE_INDEX = {"commitment": 0, "reveal": 1}
+#: ``commit_ack`` remains a structurally-valid message type (turn_message.py)
+#: for a sender that chooses to emit it, but is optional/informational here --
+#: never required before a reveal is accepted (see module docstring).
+_AUX_TYPES = frozenset(
+    {"hint", "scent", "barrier", "capture_claim", "capture_response", "commit_ack"}
+)
 
 
 @dataclass

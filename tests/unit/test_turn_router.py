@@ -49,8 +49,13 @@ def _reveal(step: int = 0) -> dict:
     return {
         "envelope": _env(step=step, cid=f"rev-{step}"),
         "message_type": "reveal",
-        "hint_text": "the western routes look risky",
-        "hint_intent": "lie",
+        "reveal": {
+            "move": "N",
+            "hint": "the western routes look risky",
+            "intent": "lie",
+            "barrier_placed": None,
+            "win_claim": False,
+        },
     }
 
 
