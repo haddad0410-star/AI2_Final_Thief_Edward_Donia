@@ -9,13 +9,23 @@ This role ships two brains, both implemented (Implementation Batch 3):
    Not a copy of the reference repository's shipped heuristic. Frozen (Batch 3
    Task 2, regression-tested) as the comparison point for the strategy below.
 2. **`EntropyEscapeThiefBrain`** (`strategy/entropy_escape_thief_brain.py`) — original
-   advanced strategy. **Held-out and real-HTTP evaluation found no demonstrated
-   survival-rate improvement over the baseline** in the current experimental
-   configuration (both already reach 100% survival, including against the
-   advanced police opponent) — see
-   `integration_lab/evidence/batch3/strategy_research/limitations.md` for the
-   root-cause analysis. Reported honestly, not hidden. This is a genuinely
-   more sophisticated, tested implementation, but no superiority claim is made.
+   advanced strategy. Batch 3 found no demonstrated survival-rate improvement
+   (both baseline and advanced reached 100% survival), root-caused to a real
+   observation-pipeline defect (see
+   `integration_lab/evidence/batch3/strategy_research/limitations.md`) — since
+   repaired in **Implementation Batch 3.5**
+   (`integration_lab/evidence/batch3_5/pipeline_root_cause.md`), which also
+   found and fixed a second real defect: Thief's honest capture-claim answer
+   was never actually delivered back to Police over the wire (`claim_response`
+   was always `None`), meaning capture could never have been confirmed in
+   real play even after the scent/hint fix alone. Held-out and real-HTTP
+   re-evaluation now shows **0% survival for both baseline and advanced
+   Thief, against either Police strategy** (a new ceiling tie at the losing
+   end) — `EntropyEscapeThiefBrain` shows no demonstrated improvement over
+   baseline in this configuration. Full analysis:
+   `integration_lab/evidence/batch3_5/strategy_research/acceptance_criteria_evaluation.md`.
+   Reported honestly, not hidden. This is a genuinely more sophisticated,
+   tested implementation, but no survival superiority claim is made.
 
 ### `EntropyEscapeThiefBrain` design
 

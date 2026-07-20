@@ -56,11 +56,13 @@ def test_unique_and_sequential_sub_game_numbers() -> None:
 
 def test_correct_reset_between_games() -> None:
     """Every sub-game starts the thief back at the SAME configured start
-    cell and is captured in exactly 1 step -- proves position/step/records
-    are freshly reset each sub-game, not carried over from the last one."""
+    cell and is captured in exactly 2 steps (one to detect the claim, one
+    to deliver the honest confirmation -- Batch 3.5 Task 4/9 defect H fix)
+    -- proves position/step/records are freshly reset each sub-game, not
+    carried over from the last one."""
     series = _run(_capture_factory(), num_games=6)
     assert all(r.result is SubGameResult.CAPTURE for r in series.sub_games)
-    assert all(r.steps_taken == 1 for r in series.sub_games)
+    assert all(r.steps_taken == 2 for r in series.sub_games)
 
 
 def test_stable_game_uid_across_series() -> None:

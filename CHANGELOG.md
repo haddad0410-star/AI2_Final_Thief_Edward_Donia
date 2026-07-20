@@ -5,6 +5,49 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed — Implementation Batch 3.5 (observation-pipeline repair)
+
+- `domain/sealing/payload.py::SealedTurnPayload` gained a real `scent_grid`
+  field (schema `sealed-turn/2`); the raw scent grid now actually crosses
+  the wire in the reveal body, alongside the existing digest.
+- `services/turn_loop.py::_absorb_public_evidence` now reads
+  `opp.get("scent_grid")` (was reading a `police_scent` key that never
+  existed in Police's real reveal dict — a real field-name mismatch bug,
+  the root cause of Thief's belief never receiving real scent evidence)
+  and decodes the received hint's region via the new
+  `domain/hint_region.py`.
+- **Real defect found and fixed**: the honest answer to a police capture
+  claim (`resolve_capture`'s `response`) was computed but never actually
+  included in Thief's own outgoing payload — `claim_response` was always
+  `None`. Fixed via a genuine one-turn-delayed confirmation design (the
+  synchronous per-step commit/reveal exchange structurally cannot answer a
+  same-step claim, since both peers send their own reveal before
+  receiving the other's): `SubGameState.pending_claim_response` is set
+  when a claim/barrier is evaluated and delivered in the NEXT turn's
+  reveal; an already-captured thief sends one final confirming reveal
+  (no further real move) before terminating. Found while building Task
+  9's real-HTTP capture sanity fixtures — this means **capture could
+  never have been confirmed to Police in real play**, independent of the
+  scent/hint fix.
+- `intent` removed from `public_reveal_dict()` — now sealed until the
+  final audit like `nonce`, per the "truth/lie intent sealed" rule.
+- New `domain/scent_validation.py` and `domain/hint_region.py`
+  (region-word encode/decode, including `generate_for_direction` so a
+  lying hint embeds a genuinely wrong region — previously the region word
+  was always true regardless of intent, undermining the deception
+  mechanic).
+- `services/belief_update.py::update_belief` now returns
+  `(belief, updated_hint_trust)` — consistency-based hint-trust tracking
+  (entropy-delta), never derived from the sealed `intent` field.
+- New tests covering scent/hint transport, belief order, capture-response
+  delay, and strategy-pipeline integration — 325 -> 352 tests, coverage
+  94.18% -> 93.87%; see `integration_lab/evidence/batch3_5/quality/`.
+- Held-out (400 games) and real-HTTP (18 sub-games, 3 series) results:
+  Thief survival rate 100% -> 0% in every matchup (capture now reliably
+  reachable; `EntropyEscapeThiefBrain` shows no demonstrated improvement
+  over baseline in this configuration, honestly reported). Full analysis:
+  `integration_lab/evidence/batch3_5/`.
+
 ### Added — Implementation Batch 3
 
 - `strategy/entropy_escape_thief_brain.py` (+ `entropy_escape_config.py`,

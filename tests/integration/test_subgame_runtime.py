@@ -30,12 +30,17 @@ def test_survival_happy_path() -> None:
 
 def test_capture_resolution_on_matching_claim() -> None:
     # Police claims the thief's start cell (3,3) on the very first reveal.
+    # The honest confirmation cannot be delivered until the FOLLOWING turn's
+    # reveal (the synchronous per-step exchange structurally cannot answer a
+    # same-step claim -- see turn_loop.py's ``was_confirming_prior_capture``
+    # handling, Batch 3.5 Task 4/9 defect H fix), so this now takes 2 turns:
+    # one to detect+acknowledge the claim, one to deliver the confirmation.
     gw = FakeGateway(opponent_turn={"capture_claim": [3, 3]})
     deps = make_deps(CONFIG, gw, "uid-c", CFG_SHA, seed=1)
     result = _run(SubGameRuntime(deps))
     assert result.result is SubGameResult.CAPTURE
     assert result.thief_score == CONFIG.scoring.capture_thief
-    assert result.steps_taken == 1
+    assert result.steps_taken == 2
 
 
 def test_barrier_on_thief_cell_is_capture() -> None:

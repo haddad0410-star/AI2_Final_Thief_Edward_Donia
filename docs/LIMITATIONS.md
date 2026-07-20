@@ -16,6 +16,36 @@ Current, honest state as of this scaffold (Phase 1-2, no application code writte
 This file will be kept current every phase — never allowed to go stale while claiming
 a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
 
+## Current state (Implementation Batch 3.5)
+
+- The observation-pipeline defect identified in Batch 3 (below) is
+  **repaired**: real scent/hint evidence now genuinely reaches belief
+  updates over the real wire protocol (`_absorb_public_evidence` was
+  reading a `police_scent` key that did not exist in Police's actual
+  reveal dict — a real field-name mismatch bug, fixed alongside adding the
+  missing hint-region decode). A real, additional defect was also found
+  and fixed: the honest answer to a police capture claim
+  (`pending_claim_response`) was never actually delivered back to Police
+  over the wire (same class of bug as the scent one) — meaning **capture
+  could never have been confirmed in real play even after the scent/hint
+  fix alone**. Fixing this required a genuine one-turn-delayed
+  confirmation design (the synchronous per-step exchange structurally
+  cannot answer a same-step claim), found and fixed while building Task
+  9's real-HTTP capture sanity fixtures.
+- Held-out evaluation (400 games) and real HTTP validation (18 sub-games)
+  now show **0% Thief survival rate in every matchup** — capture is now
+  reliably reachable, a complete reversal from Batch 3's 100% survival.
+  `EntropyEscapeThiefBrain` shows **no demonstrated improvement** over
+  `BaselineThiefBrain` in this held-out configuration (both 0% survival,
+  ceiling-tied at the losing end, against both baseline and advanced
+  Police) — reported honestly, not hidden.
+- Full analysis: `integration_lab/evidence/batch3_5/` (root cause, audit,
+  before/after traces, capture sanity fixtures, held-out and real-HTTP
+  results, figures).
+- Readiness: `LOCAL_READY` (unchanged — Batch 3.5 repairs a functional
+  defect and re-validates on top of an already-`LOCAL_READY` baseline;
+  `NETWORK_READY`/`LEAGUE_READY`/`SUBMISSION_READY` still not claimed).
+
 ## Current state (Implementation Batch 3)
 
 - `EntropyEscapeThiefBrain` is implemented, unit-tested (21 tests), and

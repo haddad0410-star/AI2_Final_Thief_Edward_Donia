@@ -1,20 +1,24 @@
 # AI2 Final Project — Thief Peer (thief_peer)
 
-**Status: Implementation Batch 3.** Everything from session recovery step C
-plus: the original `EntropyEscapeThiefBrain` advanced strategy (belief-state
-evasion, bounded lookahead, mobility preservation, barrier-threat
-prediction, risk-gated deceptive hints — see `docs/STRATEGY.md`),
-private-config strategy profiles (`baseline`/`advanced`/`experiment`), a
-research-only local simulator with 100-game held-out evaluation, and 3 real
-six-sub-game HTTP series validating the advanced strategy against baseline
-and against the advanced Police. A real bug was found and fixed this batch:
-`make_deps` always hardcoded the baseline brain regardless of private
-config — see `CHANGELOG.md`. Held-out and real-HTTP results found **no
-demonstrated survival-rate improvement** over the baseline in the current
-experimental configuration — reported honestly with root-cause analysis,
-not hidden — see
-`integration_lab/evidence/batch3/strategy_research/limitations.md`. GUI,
-Gmail reporting, public network exposure, and league play are **not**
+**Status: Implementation Batch 3.5.** Batch 3 found that held-out/real-HTTP
+evaluation showed no demonstrated survival-rate improvement for
+`EntropyEscapeThiefBrain`, root-caused to a real observation-pipeline
+defect: `_absorb_public_evidence` read a `police_scent` key that never
+existed in Police's real reveal dict, and hint evidence was never parsed
+at all. Batch 3.5 repairs this end to end, and (found while repairing it)
+also fixes a second real defect: the honest answer to a police capture
+claim was never actually delivered back to Police over the wire — meaning
+capture could never have been confirmed in real play even after the
+scent/hint fix alone (see
+`integration_lab/evidence/batch3_5/pipeline_root_cause.md`). Held-out
+evaluation (400 games) and real HTTP validation (18 sub-games, 3 series)
+now show **0% Thief survival rate in every matchup** — a complete
+reversal from Batch 3's 100%. `EntropyEscapeThiefBrain` shows no
+demonstrated improvement over `BaselineThiefBrain` in this held-out
+configuration (both 0% survival, ceiling-tied at the losing end) —
+reported honestly, see
+`integration_lab/evidence/batch3_5/strategy_research/acceptance_criteria_evaluation.md`.
+GUI, Gmail reporting, public network exposure, and league play are **not**
 implemented/run yet. Readiness: see
 `integration_lab/audit/PROGRESS.md` for the current level.
 
@@ -74,6 +78,9 @@ shared protocol contract only (see `docs/PROTOCOL.md`).
   repository.
 - 325 tests, 94.18% coverage, 0 Ruff violations, every file ≤150 meaningful
   lines (Implementation Batch 3; see `integration_lab/evidence/batch3/quality/`).
+- **352 tests, 93.87% coverage, 0 Ruff violations, every file ≤150 meaningful
+  lines (Implementation Batch 3.5 — observation-pipeline repair; see
+  `integration_lab/evidence/batch3_5/quality/`).**
 
 ## Session recovery step C (new)
 
