@@ -57,7 +57,15 @@ async def run_subgame_headless(config_dir: Path, opponent_url: str) -> dict:
     machine = PeerStateMachine()
     server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
     gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
-    deps = make_deps(shared, gateway, game_uid, config_sha, seed=private.seed)
+    deps = make_deps(
+        shared,
+        gateway,
+        game_uid,
+        config_sha,
+        seed=private.seed,
+        strategy_class=private.strategy.thief_class,
+        strategy_weights=private.strategy.weights,
+    )
     try:
         result = await SubGameRuntime(deps, machine=machine).run()
     finally:
@@ -96,7 +104,15 @@ async def run_series_headless(
 
     def deps_factory(index: int) -> SubGameDeps:
         gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
-        return make_deps(shared, gateway, game_uid, config_sha, seed=private.seed + index)
+        return make_deps(
+            shared,
+            gateway,
+            game_uid,
+            config_sha,
+            seed=private.seed + index,
+            strategy_class=private.strategy.thief_class,
+            strategy_weights=private.strategy.weights,
+        )
 
     try:
         series = await run_series(deps_factory, num_games=num_games, machine=machine)

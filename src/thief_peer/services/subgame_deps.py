@@ -44,15 +44,27 @@ def make_deps(
     brain: object | None = None,
     hint_provider: object | None = None,
     seed: int = 0,
+    strategy_class: str | None = None,
+    strategy_weights: dict | None = None,
 ) -> SubGameDeps:
-    """Assemble SubGameDeps with the baseline brain + template hints by default."""
-    from thief_peer.strategy.baseline_thief_brain import BaselineThiefBrain
+    """Assemble SubGameDeps. If ``brain`` is not injected directly, the real
+    private-config strategy selection (Batch 3, Task 5) is used --
+    ``strategy_class`` defaults to the baseline thief brain when omitted, so
+    every pre-existing caller that never passed it keeps identical
+    behavior."""
     from thief_peer.strategy.hint_templates import TemplateHintProvider
+    from thief_peer.strategy.loader import build_strategy
 
     rng = random.Random(seed)
+    resolved_class = strategy_class or "thief_peer.strategy.baseline_thief_brain:BaselineThiefBrain"
+    weights = None
+    if strategy_weights:
+        from thief_peer.strategy.entropy_escape_config import weights_from_dict
+
+        weights = weights_from_dict(strategy_weights)
     return SubGameDeps(
         config=config,
-        brain=brain or BaselineThiefBrain(rng=rng),
+        brain=brain or build_strategy(resolved_class, rng=rng, weights=weights),
         hint_provider=hint_provider or TemplateHintProvider(rng=random.Random(seed + 1)),
         gateway=gateway,
         game_uid=game_uid,

@@ -7,7 +7,7 @@ define (enforced in config_loader.load_private_config).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from thief_peer.shared.errors import ConfigError
 
@@ -33,12 +33,22 @@ class TrashTalkConfig:
     provider: str = "template"
 
 
+#: Documented private strategy profiles (Batch 3, Task 5) -- "baseline" and
+#: "advanced" select the class default weights; "experiment" additionally
+#: carries a [strategy.weights] override table. The profile NAME itself is
+#: local documentation only; the authoritative, audited value is always
+#: `thief_class` (also recorded verbatim in the Step-0 declaration).
+KNOWN_PROFILES = frozenset({"baseline", "advanced", "experiment"})
+
+
 @dataclass(frozen=True, slots=True)
 class StrategyConfig:
     """Private choice of move-selection brain (Appendix F Table 22 style
     ``package.module:ClassName``). Defaults to the baseline thief brain."""
 
     thief_class: str = "thief_peer.strategy.baseline_thief_brain:BaselineThiefBrain"
+    profile: str = "baseline"
+    weights: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,10 +102,22 @@ class PrivateGameConfig:
             ),
         )
         strategy_raw = data.get("strategy", {})
-        strategy = (
-            StrategyConfig(thief_class=strategy_raw["thief_class"])
-            if strategy_raw.get("thief_class")
-            else StrategyConfig()
+        profile = strategy_raw.get("profile", "baseline")
+        if profile not in KNOWN_PROFILES:
+            raise ConfigError(
+                f"unknown strategy profile {profile!r}; expected one of {sorted(KNOWN_PROFILES)}"
+            )
+        weights_raw = strategy_raw.get("weights", {})
+        if not all(
+            isinstance(v, int | float) and not isinstance(v, bool) for v in weights_raw.values()
+        ):
+            raise ConfigError("strategy.weights values must all be numeric")
+        strategy = StrategyConfig(
+            thief_class=strategy_raw.get(
+                "thief_class", "thief_peer.strategy.baseline_thief_brain:BaselineThiefBrain"
+            ),
+            profile=profile,
+            weights=dict(weights_raw),
         )
         seed = int(data.get("play", {}).get("seed", 0))
         return cls(
