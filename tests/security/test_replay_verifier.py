@@ -60,6 +60,7 @@ def _payload(sub_game: int, step: int) -> SealedTurnPayload:
         intent="truth",
         hint="north looks fine",
         scent_digest="d" * 64,
+        scent_grid=((0.0, 0.0), (0.0, 0.0)),
         timestamp="2026-07-18T00:00:00+00:00",
         nonce=f"{sub_game:032x}{step:032x}",
         config_sha256=sha256_hex(CONFIG_DIR / "game.json"),

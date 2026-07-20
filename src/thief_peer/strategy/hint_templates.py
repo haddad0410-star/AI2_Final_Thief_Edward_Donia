@@ -15,10 +15,16 @@ from __future__ import annotations
 
 import random
 
+from thief_peer.domain.hint_region import REGIONS, region_for_direction
 from thief_peer.domain.hints import HintIntent
-from thief_peer.domain.positions import Direction
 
-REGIONS = ("northern", "southern", "eastern", "western", "central")
+__all__ = [
+    "REGIONS",
+    "DECEPTIVE_TEMPLATES",
+    "TRUTHFUL_TEMPLATES",
+    "TemplateHintProvider",
+    "region_for_direction",
+]
 
 #: Hints that gesture toward the true intent ("I am heading roughly {region}").
 TRUTHFUL_TEMPLATES = (
@@ -40,19 +46,6 @@ DECEPTIVE_TEMPLATES = (
     "I am steering well clear of the {region} rooftops.",
 )
 
-_REGION_FOR_DIRECTION = {
-    Direction.N: "northern",
-    Direction.S: "southern",
-    Direction.E: "eastern",
-    Direction.W: "western",
-    Direction.STAY: "central",
-}
-
-
-def region_for_direction(direction: Direction) -> str:
-    """Map a move direction to a cardinal-region word (never a coordinate)."""
-    return _REGION_FOR_DIRECTION[direction]
-
 
 class TemplateHintProvider:
     """Deterministic-given-seed offline hint renderer."""
@@ -68,6 +61,14 @@ class TemplateHintProvider:
         chosen_region = region if region in REGIONS else self._rng.choice(REGIONS)
         text = self._rng.choice(pool).format(region=chosen_region)
         return self._clamp_words(text)
+
+    def generate_for_direction(self, intent: HintIntent, direction) -> str:
+        """Derive the region word from ``direction``/``intent`` (true region
+        when honest, a plausible wrong one when lying -- Batch 3.5 Task 5)
+        using this provider's own RNG, then render."""
+        from thief_peer.domain.hint_region import region_for_intent
+
+        return self.generate(intent, region_for_intent(direction, intent, self._rng))
 
     def _clamp_words(self, text: str) -> str:
         words = text.split()

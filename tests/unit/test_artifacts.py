@@ -45,6 +45,7 @@ def _payload(step: int) -> SealedTurnPayload:
         intent="truth",
         hint="north looks fine",
         scent_digest="d" * 64,
+        scent_grid=((0.0, 0.0), (0.0, 0.0)),
         timestamp="2026-07-18T00:00:00+00:00",
         nonce=f"{step:064x}",
         config_sha256=SHA,

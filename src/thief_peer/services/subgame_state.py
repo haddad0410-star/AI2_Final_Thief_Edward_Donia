@@ -37,6 +37,21 @@ class SubGameState:
     step: int = 0
     #: Last PUBLIC police scent grid received (never a true position).
     police_scent: ScentField | None = None
+    #: The region a just-received hint decodes to, or None if no hint
+    #: evidence is available this turn (Batch 3.5 Task 5).
+    hint_region: frozenset[Position] | None = None
+    #: Bounded [0,1] consistency-based trust in hint evidence, carried
+    #: across turns within one sub-game; never derived from the sealed
+    #: intent field.
+    hint_trust: float = 0.5
+    #: The honest answer to the police's MOST RECENTLY received capture
+    #: claim, not yet delivered -- included in the NEXT outgoing reveal
+    #: (Batch 3.5 Task 4/9: the synchronous per-step commit/reveal exchange
+    #: structurally cannot answer a same-step claim, since both peers send
+    #: their own reveal before receiving the other's; see
+    #: integration_lab/evidence/batch3_5/observation_pipeline_audit.md
+    #: addendum, defect H). ``None`` means no claim evidence arrived yet.
+    pending_claim_response: bool | None = None
 
     @classmethod
     def initial(

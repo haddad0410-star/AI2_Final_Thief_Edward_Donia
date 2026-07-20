@@ -40,6 +40,7 @@ def payload_from_step(step: dict) -> SealedTurnPayload:
         intent=step["intent"],
         hint=step["hint"],
         scent_digest=step["scent_digest"],
+        scent_grid=tuple(tuple(row) for row in step["scent_grid"]) if "scent_grid" in step else (),
         timestamp=step["timestamp"],
         nonce=step["nonce"],
         config_sha256=step["config_sha256"],

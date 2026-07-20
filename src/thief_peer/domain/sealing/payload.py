@@ -1,21 +1,26 @@
-"""SealedTurnPayload: the versioned, canonical per-step record (Batch 2 Phase 4).
+"""SealedTurnPayload: the versioned, canonical per-step record (Batch 2 Phase 4;
+scent/intent sealing repaired Batch 3.5 Task 4/5 -- see
+integration_lab/evidence/batch3_5/observation_pipeline_audit.md defects A1/C2).
 
 This is the exact structure that is SHA-256 sealed at commit time and revealed
-(with its nonce) at the final audit. Every field is either this peer's own truth
-or legally-public information -- there is NO opponent-true-position field, by
-construction (see tests/security/test_sealed_payload_isolation.py). The thief may
-lie only in ``hint`` (with ``intent`` honestly declaring truth/lie); every
-physical/cryptographic field is honest.
+(with its nonce and intent) at the final audit. Every field is either this
+peer's own truth or legally-public information -- there is NO
+opponent-true-position field, by construction (see
+tests/security/test_sealed_payload_isolation.py). The thief may lie only in
+``hint`` (with ``intent`` honestly declaring truth/lie, sealed until the
+final audit); every physical/cryptographic field is honest.
 
-The scent trail is sealed as a *stable digest* (``scent_digest``), never as a raw
-grid, so the record stays compact while remaining tamper-evident.
+The binding protocol field set (protocol_contract.md section 3.2) names the
+actual scent trail (``smell_grid``) as a sealed field, not merely a digest of
+it -- ``scent_grid`` carries the real values; ``scent_digest`` remains as an
+additional stable-digest convenience field.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = "sealed-turn/1"
+CURRENT_SCHEMA_VERSION = "sealed-turn/2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +35,7 @@ class SealedTurnPayload:
     intent: str
     hint: str
     scent_digest: str
+    scent_grid: tuple[tuple[float, ...], ...]
     timestamp: str
     nonce: str
     config_sha256: str
@@ -56,6 +62,7 @@ class SealedTurnPayload:
             "intent": self.intent,
             "hint": self.hint,
             "scent_digest": self.scent_digest,
+            "scent_grid": [list(row) for row in self.scent_grid],
             "barrier_placed": list(self.barrier_placed) if self.barrier_placed else None,
             "capture_claim": list(self.capture_claim) if self.capture_claim else None,
             "claim_response": self.claim_response,
@@ -66,8 +73,13 @@ class SealedTurnPayload:
         }
 
     def public_reveal_dict(self) -> dict:
-        """The fields revealed in the clear at REVEAL time -- everything except
-        the still-hidden ``nonce`` (revealed only at final audit)."""
+        """The fields revealed in the clear at REVEAL time -- everything
+        except ``nonce`` and ``intent`` (both stay hidden until the final
+        audit; ``intent`` -- the hint's truth/lie verdict -- must stay
+        sealed during play per the absolute rule "truth/lie intent sealed",
+        so a receiver judges hint reliability from consistency history, not
+        an early-disclosed verdict)."""
         data = self.to_canonical_dict()
         del data["nonce"]
+        del data["intent"]
         return data

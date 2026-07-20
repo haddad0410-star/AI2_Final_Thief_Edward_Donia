@@ -25,6 +25,7 @@ def make_payload(step: int = 0, nonce: str | None = None, **overrides: object) -
         "intent": "truth",
         "hint": "The northern avenues feel exposed right now.",
         "scent_digest": "deadbeef" * 8,
+        "scent_grid": ((0.0, 0.0), (0.0, 0.0)),
         "timestamp": "2026-07-18T00:00:00+00:00",
         "nonce": nonce if nonce is not None else f"{FIXED_NONCE}-{step}",
         "config_sha256": "a" * 64,
