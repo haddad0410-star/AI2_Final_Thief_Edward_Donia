@@ -1,18 +1,21 @@
 # AI2 Final Project — Thief Peer (thief_peer)
 
-**Status: session recovery step C.** Everything from session recovery step B
-plus: the canonical `declaration/2` Step-0 schema (risk #14, resolved), a
-real 3x FastMCP lifecycle regression, a real one-sub-game two-process HTTP
-game (`survival`, both sides' independently-written artifacts byte-matching,
-both replay verifiers `VERIFIED`), a real six-sub-game two-process series
-(6/6 sub-games, both replay verifiers `VERIFIED`, mutual artifact comparison
-96/96 checks passed), an independent tamper-detection check, all 18 bounded
-failure drills passing, and full quality/security gates. Six real,
-previously-undiscovered cross-repo protocol/wiring defects were found and
-fixed this step (risks #15-#16) — see `CHANGELOG.md` and
-`integration_lab/audit/risk_register.md`. The `EntropyEscapeThiefBrain`
-original strategy, GUI, Gmail reporting, public network exposure, and league
-play are **not** implemented/run yet. Readiness: see
+**Status: Implementation Batch 3.** Everything from session recovery step C
+plus: the original `EntropyEscapeThiefBrain` advanced strategy (belief-state
+evasion, bounded lookahead, mobility preservation, barrier-threat
+prediction, risk-gated deceptive hints — see `docs/STRATEGY.md`),
+private-config strategy profiles (`baseline`/`advanced`/`experiment`), a
+research-only local simulator with 100-game held-out evaluation, and 3 real
+six-sub-game HTTP series validating the advanced strategy against baseline
+and against the advanced Police. A real bug was found and fixed this batch:
+`make_deps` always hardcoded the baseline brain regardless of private
+config — see `CHANGELOG.md`. Held-out and real-HTTP results found **no
+demonstrated survival-rate improvement** over the baseline in the current
+experimental configuration — reported honestly with root-cause analysis,
+not hidden — see
+`integration_lab/evidence/batch3/strategy_research/limitations.md`. GUI,
+Gmail reporting, public network exposure, and league play are **not**
+implemented/run yet. Readiness: see
 `integration_lab/audit/PROGRESS.md` for the current level.
 
 ## Abstract
@@ -69,9 +72,8 @@ shared protocol contract only (see `docs/PROTOCOL.md`).
   (`sdk/game_runner.py`, `run-subgame`/`run-series`/`verify-replay`/
   `show-status`). All independently implemented — no import of the Police
   repository.
-- 292 tests, 93.80% coverage, 0 Ruff violations, every file ≤150 meaningful
-  lines (session recovery step C; see `integration_lab/evidence/
-  session_recovery_step_c/quality/`).
+- 325 tests, 94.18% coverage, 0 Ruff violations, every file ≤150 meaningful
+  lines (Implementation Batch 3; see `integration_lab/evidence/batch3/quality/`).
 
 ## Session recovery step C (new)
 

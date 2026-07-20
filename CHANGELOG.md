@@ -5,6 +5,43 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — Implementation Batch 3
+
+- `strategy/entropy_escape_thief_brain.py` (+ `entropy_escape_config.py`,
+  `entropy_escape_utility.py`): original advanced Thief strategy.
+  Full-belief-distribution evasion (not just argmax), bounded belief-
+  transition lookahead, real BFS-based mobility/reachable-region scoring,
+  a structural barrier-threat proxy (proximity to believed police region ×
+  local chokepoint-ness), a trajectory-predictability penalty, risk-gated
+  deceptive hint selection (existing template system only — no LLM), and a
+  documented, configurable utility function. 21 unit tests.
+- `strategy/loader.py::build_strategy`/`load_strategy_class` gained an
+  interface check (`decide(ctx)` callable) and an optional `weights`
+  parameter, passed through only when the resolved class's constructor
+  accepts one.
+- `shared/private_config.py::StrategyConfig` gained `profile`
+  (`baseline`/`advanced`/`experiment`) and `weights` (validated numeric-
+  only, unknown-key-rejecting) fields, selected via each peer's own private
+  `game.toml` — never the signed shared `game.json`.
+- **Real bug found and fixed**: `services/subgame_deps.py::make_deps` had
+  always hardcoded `BaselineThiefBrain` regardless of the private config's
+  `thief_class` setting — the field was parsed but never actually
+  consulted anywhere in the real `sdk/game_runner.py` call path. Fixed:
+  `make_deps` now accepts `strategy_class`/`strategy_weights` and both
+  `run_subgame_headless`/`run_series_headless` thread
+  `private.strategy.thief_class`/`.weights` through for real.
+- Held-out research evaluation (100 games, seeds 2000-2099) and 3 real
+  six-sub-game HTTP series found **no demonstrated survival-rate
+  improvement** over `BaselineThiefBrain` in the current experimental
+  configuration (both already achieve 100% survival, including against
+  the advanced police opponent) — documented as ceiling-tied/inconclusive
+  in `integration_lab/evidence/batch3/strategy_research/limitations.md`,
+  not hidden.
+- `integration_lab/strategy_research/` (research-only local simulator,
+  leakage tests, experiment runner, statistics, figures) and
+  `integration_lab/run_advanced_strategy_series.py` (real HTTP validation
+  launcher) — see `integration_lab/evidence/batch3/`.
+
 ### Changed — Session recovery step C
 
 - Declaration schema frozen as canonical, versioned `declaration/2`
