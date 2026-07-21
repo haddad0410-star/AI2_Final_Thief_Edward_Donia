@@ -36,3 +36,15 @@ summarizes only what's specific to running this repo as the Thief side.
   instead (`SubGameRuntime.abort()`), so this peer can never submit an audit
   for a sub-game it did not actually finish. See `docs/ARCHITECTURE.md`
   ("Sub-game exit and audit transition") for the full state table.
+
+**Note (this section describes Batch-1-era scope; the peer has since grown
+`receive_turn`/`submit_audit` and real multi-process series validation —
+see `integration_lab/audit/PROGRESS.md` for current status.)**
+
+**Scent field-name correction (Batch 3.6 Task 2):** `protocol_contract.md`
+§3.2's `scent_grid` field name is this project's own paraphrase of the
+book's prose description of the sealed record — a full-text search of the
+book PDF found no literal `scent_grid`/`smell_grid` field name anywhere.
+The underlying semantics (full-board cumulative decaying trail, sealed raw
+values not a digest) are still correctly implemented; only the exact
+identifier is ours. See `integration_lab/evidence/batch3_6/scent_timing_contract.md`.

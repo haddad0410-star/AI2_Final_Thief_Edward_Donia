@@ -5,6 +5,36 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — Implementation Batch 3.6 (epistemic fairness, scent timing,
+### capture correctness, and strategy distinguishability audit)
+
+No production defects were found this batch (verification/audit only,
+triggered by Batch 3.5's own 0%-survival ceiling result needing an
+independent fairness check before being trusted).
+
+- `tests/unit/test_hint_visibility_batch3_6.py` (3 tests): end-to-end
+  proof that the hint intent verdict is absent from the live `reveal`
+  payload and present/verifiable only at final audit.
+- `tests/unit/test_capture_correctness_batch3_6.py` (1 test): boundary
+  proof that a truthful capture claim delivered on the exact same turn
+  survival would otherwise trigger still resolves as `CAPTURE`.
+- Corrected a documentation-only inaccuracy in
+  `integration_lab/audit/protocol_contract.md` §3.2: the `scent_grid`
+  field name was a project paraphrase of the book's prose, not a literal
+  book-mandated identifier (confirmed via full-text PDF search) — the
+  implemented field/semantics are unchanged.
+- Full audit evidence (no code impact): quantitative information-leakage
+  analysis (200 random walks over production `domain.scent`/
+  `domain.belief_updates`), a 9-condition causal ablation harness, 6
+  deterministic strategy behavioral-difference fixtures (built honestly —
+  one scenario's first construction showed no divergence and was
+  iterated, another was found to have a barrier-filtering bug in a
+  reimplemented helper and was fixed by reusing the real
+  `entropy_escape_utility.reachable_area` directly), non-ceiling secondary
+  metrics, an 800-game multi-scale `RESEARCH_ONLY` robustness check, 3 new
+  research/production-equivalence tests, and a 4-series real HTTP
+  validation run. See `integration_lab/evidence/batch3_6/`.
+
 ### Fixed — Implementation Batch 3.5 (observation-pipeline repair)
 
 - `domain/sealing/payload.py::SealedTurnPayload` gained a real `scent_grid`
