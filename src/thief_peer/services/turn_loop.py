@@ -9,22 +9,24 @@ hang. This module never reads the opponent's true position.
 
 from __future__ import annotations
 
+import time
+
 from thief_peer.domain.actions import MoveAction
 from thief_peer.domain.captures import SubGameResult
 from thief_peer.domain.deadline import DeadlineTracker
-from thief_peer.domain.hints import HintIntent
 from thief_peer.domain.positions import Direction
 from thief_peer.domain.rules import apply_move, legal_move_directions
-from thief_peer.domain.scent import ScentField, apply_turn
-from thief_peer.domain.sealing import SealedTurnPayload, new_nonce, seal
+from thief_peer.domain.scent import apply_turn
 from thief_peer.domain.state_machine import EventKind, TransitionEvent
 from thief_peer.infrastructure.mcp_client import PeerUnavailableError
+from thief_peer.services import turn_gui_publish as gui
 from thief_peer.services import turn_trace
 from thief_peer.services.belief_update import update_belief
 from thief_peer.services.capture_resolution import resolve_capture
 from thief_peer.services.outcomes import TurnResult
 from thief_peer.services.subgame_state import SubGameState
 from thief_peer.services.turn_messages import commitment_message, reveal_message
+from thief_peer.services.turn_prep import absorb_public_evidence, seal_turn
 from thief_peer.strategy.decision import ThiefDecisionInput
 
 _EV = EventKind
@@ -40,6 +42,14 @@ async def run_turn(state: SubGameState, deps) -> TurnResult:
         return await _run_turn(state, deps)
     except (PeerUnavailableError, KeyError, ValueError) as exc:
         state.machine.force_error(str(exc))
+        gui.exchange_failed(state, deps.config_sha256, state.machine.state.value)
+        gui.result_for(
+            state,
+            "technical_loss",
+            f"technical loss: {exc}",
+            len(state.records),
+            state.machine.state.value,
+        )
         return TurnResult(True, SubGameResult.TECHNICAL_LOSS, f"technical loss: {exc}")
 
 
@@ -63,13 +73,29 @@ async def _run_turn(state: SubGameState, deps) -> TurnResult:
         step=state.step,
         deadline=deadline,
     )
+    position_before = state.position
+    t0 = time.perf_counter()
     decision = deps.brain.decide(ctx)
+    latency = time.perf_counter() - t0
     hint = deps.hint_provider.generate_for_direction(decision.intent, decision.direction)
     turn_trace.record_decide_turn(
         state=state, belief_before=belief_before, brain=deps.brain, decision=decision, hint=hint
     )
+    destination_preview = apply_move(state.position, MoveAction(decision.direction), state.board)
+    gui.decision(
+        sub_game_number=state.sub_game_number,
+        step=state.step,
+        position_before=position_before,
+        position_after=destination_preview,
+        visited_count=len(state.visited),
+        action=decision.direction.value,
+        belief=state.belief,
+        hint_text=hint,
+        strategy_class=type(deps.brain).__module__ + "." + type(deps.brain).__qualname__,
+        latency=latency,
+    )
 
-    record = _seal_turn(state, decision.direction, decision.intent, hint, deps)
+    record = seal_turn(state, decision.direction, decision.intent, hint, deps)
     state.exchange.commit(state.step, record.commit_hash)
     state.machine.apply(_ev(_EV.MOVE_DECIDED))
 
@@ -103,6 +129,13 @@ async def _run_turn(state: SubGameState, deps) -> TurnResult:
     # further legal move for an already-captured thief to make.
     if was_confirming_prior_capture:
         state.machine.apply(_ev(_EV.SUB_GAME_ENDED, "captured"))
+        gui.result_for(
+            state,
+            "capture",
+            "captured (confirmed to opponent)",
+            len(state.records),
+            state.machine.state.value,
+        )
         return TurnResult(True, SubGameResult.CAPTURE, "captured (confirmed to opponent)")
 
     return _resolve_and_advance(
@@ -110,37 +143,13 @@ async def _run_turn(state: SubGameState, deps) -> TurnResult:
     )
 
 
-def _seal_turn(state: SubGameState, direction: Direction, intent: HintIntent, hint: str, deps):
-    payload = SealedTurnPayload(
-        step=state.step,
-        role="thief",
-        sub_game_number=state.sub_game_number,
-        state=state.state_digest(),
-        move=direction.value,
-        intent=intent.value,
-        hint=hint,
-        scent_digest=_scent_digest(state.own_scent),
-        scent_grid=state.own_scent.grid,
-        claim_response=state.pending_claim_response,
-        timestamp=deps.now_iso(),
-        nonce=new_nonce(),
-        config_sha256=deps.config_sha256,
-    )
-    return seal(payload)
-
-
-def _scent_digest(scent: ScentField) -> str:
-    from thief_peer.shared.canonical_json import canonical_sha256_hex
-
-    return canonical_sha256_hex([list(row) for row in scent.grid])
-
-
 def _resolve_and_advance(state: SubGameState, direction: Direction, opp: dict, deps) -> TurnResult:
     resolution = resolve_capture(
         state.position, opp.get("capture_claim"), opp.get("barrier_placed")
     )
-    _absorb_public_evidence(state, opp)
+    absorb_public_evidence(state, opp)
     turn_trace.record_turn_exchange(state=state, opp=opp)
+    gui.exchange_ok(state, opp.get("hint", "") or "", deps.config_sha256, state.machine.state.value)
     if resolution.captured:
         state.pending_claim_response = True
     elif resolution.response is not None:
@@ -161,33 +170,15 @@ def _resolve_and_advance(state: SubGameState, direction: Direction, opp: dict, d
     state.visited.add(state.position)
     if state.step + 1 >= deps.survival_threshold:
         state.machine.apply(_ev(_EV.SUB_GAME_ENDED, "survived"))
+        gui.result_for(
+            state,
+            "survival",
+            "reached survival threshold",
+            len(state.records),
+            state.machine.state.value,
+        )
         return TurnResult(True, SubGameResult.SURVIVAL, "reached survival threshold")
 
     state.machine.apply(_ev(_EV.TURN_VERIFIED))
     state.step += 1
     return TurnResult(False, None, "turn complete")
-
-
-def _absorb_public_evidence(state: SubGameState, opp: dict) -> None:
-    """Fold the opponent's public reveal into local state: police's real
-    scent grid (Batch 3.5 Task 4 -- previously read a ``police_scent`` key
-    that does not exist in police's actual reveal dict, which only carries
-    ``scent_grid``; see observation_pipeline_audit.md defect B2), and the
-    hint's decoded region (Task 5 -- previously never parsed at all)."""
-    from thief_peer.domain.hint_region import parse_region_from_hint, region_cells
-    from thief_peer.domain.scent_validation import validate_scent_grid
-
-    scent_grid = opp.get("scent_grid")
-    if validate_scent_grid(scent_grid, state.grid_size) is None:
-        rows = tuple(tuple(float(v) for v in row) for row in scent_grid)
-        state.police_scent = ScentField(grid_size=state.grid_size, grid=rows)
-    else:
-        state.police_scent = None
-    hint_text = opp.get("hint")
-    region_word = parse_region_from_hint(hint_text) if hint_text else None
-    state.hint_region = region_cells(region_word, state.grid_size) if region_word else None
-    barrier = opp.get("barrier_placed")
-    if barrier is not None:
-        from thief_peer.domain.positions import Position
-
-        state.board = state.board.with_barrier(Position(barrier[0], barrier[1]))

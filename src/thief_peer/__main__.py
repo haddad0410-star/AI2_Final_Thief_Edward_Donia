@@ -6,6 +6,9 @@ Commands:
 - ``run-series``        : run the full 6-game series (``--smoke`` = 1 game) (Phase 10).
 - ``verify-replay``     : headless artifact verifier, VERIFIED/TAMPERED (Phase 12).
 - ``show-status``       : print the locally-parsed config (no network calls).
+- ``peer``              : run a series with ``--gui``/``--no-gui`` (Batch 4A).
+- ``replay``            : graphical/headless post-game replay viewer (Batch 4A).
+- ``report``            : Gmail dry-run report (``--send`` for a real send; Batch 4A).
 
 Business logic lives in the SDK/services layers; this file only parses args,
 dispatches, and reports a clear exit code. A Ctrl+C (SIGINT) during any
@@ -22,6 +25,7 @@ import json
 import sys
 from pathlib import Path
 
+from thief_peer import cli_batch4a, cli_gmail
 from thief_peer.domain.roles import Role
 from thief_peer.sdk.game_runner import (
     print_summary,
@@ -121,6 +125,24 @@ def _build_parser() -> argparse.ArgumentParser:
 
     status = subparsers.add_parser("show-status", help="Print the locally-parsed config")
     status.add_argument("--config-dir", default=str(CONFIG_DIR))
+
+    peer = subparsers.add_parser("peer", help="Run a series with a live GUI (Batch 4A)")
+    gui_group = peer.add_mutually_exclusive_group()
+    gui_group.add_argument("--gui", action="store_true", help="launch the live Tkinter view")
+    gui_group.add_argument("--no-gui", action="store_true", help="headless (default)")
+    peer.add_argument("--smoke", action="store_true", help="single-game SMOKE TEST ONLY")
+    peer.add_argument("--config-dir", default=str(CONFIG_DIR))
+    peer.add_argument("--opponent-url", default=default_url)
+    peer.add_argument("--artifacts-dir", default=None)
+
+    replay = subparsers.add_parser("replay", help="Graphical/headless post-game replay viewer")
+    replay.add_argument("--gui", action="store_true", help="launch the graphical replay viewer")
+    replay.add_argument("--police-artifacts", required=True)
+    replay.add_argument("--thief-artifacts", required=True)
+
+    report = subparsers.add_parser("report", help="Gmail report (dry-run by default)")
+    report.add_argument("--artifacts-dir", required=True)
+    report.add_argument("--send", action="store_true", help="real send (requires credentials)")
     return parser
 
 
@@ -137,6 +159,12 @@ def main() -> None:
             sys.exit(_verify_replay(args))
         if args.command == "show-status":
             sys.exit(_show_status(args))
+        if args.command == "peer":
+            sys.exit(cli_batch4a.peer(args, _run_series))
+        if args.command == "replay":
+            sys.exit(cli_batch4a.replay(args))
+        if args.command == "report":
+            sys.exit(cli_gmail.report(args))
         raise NotImplementedError(f"command {args.command!r} is not implemented yet")
     except KeyboardInterrupt:
         print("\ninterrupted: shutting down", file=sys.stderr)
