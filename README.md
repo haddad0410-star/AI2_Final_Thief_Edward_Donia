@@ -1,41 +1,38 @@
 # AI2 Final Project — Thief Peer (thief_peer)
 
-**Status: Implementation Batch 3.6.** Batch 3 found that held-out/real-HTTP
-evaluation showed no demonstrated survival-rate improvement for
-`EntropyEscapeThiefBrain`, root-caused to a real observation-pipeline
-defect: `_absorb_public_evidence` read a `police_scent` key that never
-existed in Police's real reveal dict, and hint evidence was never parsed
-at all. Batch 3.5 repairs this end to end, and (found while repairing it)
-also fixes a second real defect: the honest answer to a police capture
-claim was never actually delivered back to Police over the wire — meaning
-capture could never have been confirmed in real play even after the
-scent/hint fix alone (see
-`integration_lab/evidence/batch3_5/pipeline_root_cause.md`). Held-out
-evaluation (400 games) and real HTTP validation (18 sub-games, 3 series)
-now show **0% Thief survival rate in every matchup** — a complete
-reversal from Batch 3's 100%. `EntropyEscapeThiefBrain` shows no
-demonstrated improvement over `BaselineThiefBrain` in this held-out
-configuration (both 0% survival, ceiling-tied at the losing end) —
-reported honestly, see
-`integration_lab/evidence/batch3_5/strategy_research/acceptance_criteria_evaluation.md`.
-**Batch 3.6** ran a dedicated fairness/correctness audit on top of this
-result — verified no exact-position leakage (a unique-looking scent peak
-matches the true position only 30.5% of the time), no hint-verdict
-early-visibility defect, correct capture-claim/survival-threshold boundary
-handling, and confirmed via an 800-game multi-scale robustness check that
-the ceiling is a genuine game-design property (persists at 7x7/9x9/11x11
-alike), while 6 deterministic fixtures proved real behavioral differences
-exist between baseline and advanced strategy regardless. Final
-classification: **C** (genuine ceiling) **with D** (real behavioral
-differences) **as a corollary** — see
-`integration_lab/evidence/batch3_6/conclusion.md`. GUI, Gmail reporting,
-public network exposure, and league play are **not** implemented/run yet.
-Readiness: see `integration_lab/audit/PROGRESS.md` for the current level.
+**Status: Implementation Batch 4A.** Readiness: `LOCAL_READY`.
+`NETWORK_READY`/`LEAGUE_READY`/`SUBMISSION_READY` are **not** claimed — see
+`integration_lab/audit/PROGRESS.md` for the authoritative, up-to-date
+readiness record.
 
 ## Abstract
 
-_TODO (Phase 16): one-paragraph summary of the approach and headline results, written
-only after real experiments exist. Not written yet — no results exist to summarize._
+This repository implements the Thief side of a distributed, partially-observable
+pursuit game (Dec-POMDP-flavored) against an independently-built Police peer, per
+the course's `police_thief_p2p.pdf` specification. Two fully independent FastMCP
+processes communicate over a commit-reveal-sealed wire protocol with no central
+referee and no shared mutable state. An initial implementation (Batch 3) produced
+strategy code that showed no measurable survival-rate advantage over a baseline —
+traced (Batch 3.5) to a real observation-pipeline defect where `_absorb_public_evidence`
+read a `police_scent` key that never existed in Police's actual reveal dict, and
+hint evidence was never parsed at all; a second defect meant Thief's own honest
+capture-claim answer never reached Police over the wire, so capture could never
+have been confirmed even after the scent/hint fix alone. Repairing both reversed
+the headline result completely (100% → 0% survival rate), which itself turned
+out to be a new ceiling tie requiring a dedicated fairness/correctness audit
+(Batch 3.6): no exact-position leak via scent (a confident-looking peak matches
+the true cell only 30.5% of the time), no premature hint-verdict disclosure, and
+— via an 800-game multi-scale robustness check — confirmation that the 0%
+survival ceiling is a genuine property of this board/geometry and greedy
+pursuit/evasion dynamics, not a defect or a 7×7-specific artifact. Real,
+non-ceiling behavioral differences between baseline and advanced strategies were
+proven directly (6 deterministic fixtures, never reading the opponent's true
+position). Batch 4A adds a live Tkinter GUI (own-truth-only, event-driven,
+headlessly-tested view model), a graphical post-game replay viewer built on the
+existing unmodified verification engine, a Gmail send-only dry-run reporter
+behind a real rate-limiting Gatekeeper, and public-network preparation that is
+deliberately never activated. No advanced-strategy win-rate superiority is
+claimed anywhere in this repository.
 
 ## Team
 
@@ -46,153 +43,202 @@ only after real experiments exist. Not written yet — no results exist to summa
 
 ## Sibling repository
 
-This is the **Thief** peer. The **Police** peer lives in a
-separate, independent repository: `https://github.com/haddad0410-star/AI2_Final_Police_Edward_Donia` (placeholder URL — not
-yet created/pushed).
+This is the **Thief** peer. The **Police** peer lives in a separate, independent
+repository (placeholder, not yet created/pushed):
+`https://github.com/haddad0410-star/AI2_Final_Police_Edward_Donia`.
 
-Per the project's isolation rules, this repository does **not** import from the sibling
-repository or from `integration_lab/` at runtime. Any resemblance in wire format is by
-shared protocol contract only (see `docs/PROTOCOL.md`).
+Per the project's isolation rules, this repository does **not** import from the
+sibling repository or from `integration_lab/` at runtime. Any resemblance in wire
+format is by shared protocol contract only (see `docs/PROTOCOL.md`).
 
-## What's actually implemented (Batch 1)
+## Project objective and problem formulation
 
-- **Configuration**: strict loaders/validators for `game.json` (shared, byte-identical
-  with `police_peer`, SHA-256-verified), `game.toml` (private, rejects any attempt to
-  override a shared field), `rate_limits.json`.
-- **Domain models**: `Role`, `Position`/`Direction`, move/barrier/stay actions, hints,
-  capture claim/response, `LocalPeerState` — structurally guaranteed (tested by field
-  introspection, not just convention) to hold only this peer's own truth.
-- **Board physics**: legal movement (4-orthogonal + STAY, no diagonals), barrier
-  placement legality (own-cell or orthogonally-adjacent only, visually verified
-  against the book), capture/scoring rules.
-- **Scent + belief models**: exact 5x5 emission matrix and decay formula; a normalized
-  probabilistic belief update (not claimed Bayesian-optimal) — see
-  `docs/BELIEF_MODEL.md`.
-- **Protocol schemas**: strict validation for every message category in
-  `integration_lab/audit/protocol_contract.md`.
-- **Minimal real FastMCP HTTP vertical slice**: `health`/`negotiate`/`propose_config`
-  tools, proven over an actual two-independent-process HTTP handshake — evidence in
-  `integration_lab/evidence/negotiation_smoke/`.
-- **Batch 2 (verified in session recovery steps A/B)**: commit-reveal
-  sealing, Step-0 declaration, state machine, deadline tracker + watchdog,
-  extended FastMCP turn protocol, baseline strategy brain, template hints,
-  sub-game runtime (Phase 9).
-- **New this session (session recovery step B, Tasks 4-7)**: six-sub-game
-  series runtime (Phase 10, `services/series_runtime.py`), JSON artifact
-  generation (Phase 11, `services/artifact_models.py`/`artifact_builders.py`/
-  `artifacts.py`/`series_artifacts.py`) verified byte-identical in schema to
-  the independently-built Police repo's artifacts, headless replay
-  verifier (Phase 12, `services/replay_verifier.py`), and full CLI wiring
-  (`sdk/game_runner.py`, `run-subgame`/`run-series`/`verify-replay`/
-  `show-status`). All independently implemented — no import of the Police
-  repository.
-- 325 tests, 94.18% coverage, 0 Ruff violations, every file ≤150 meaningful
-  lines (Implementation Batch 3; see `integration_lab/evidence/batch3/quality/`).
-- 352 tests, 93.87% coverage, 0 Ruff violations, every file ≤150 meaningful
-  lines (Implementation Batch 3.5 — observation-pipeline repair; see
-  `integration_lab/evidence/batch3_5/quality/`).
-- **356 tests, 93.87% coverage, 0 Ruff violations, every file ≤150
-  meaningful lines (Implementation Batch 3.6 — epistemic fairness/scent
-  timing/capture correctness/strategy distinguishability audit; see
-  `integration_lab/evidence/batch3_6/`).**
+Distributed Cops-and-Robbers is framed as a two-agent, partially-observable
+pursuit game: a tuple `⟨n, S, {Aᵢ}, P, R, {Ωᵢ}, O, γ⟩` in the Dec-POMDP sense
+(book Ch.1.3), where the true joint state `S` is inaccessible to either agent —
+"no central observer." Each peer observes only: its own true state, the
+opponent's public, decaying scent trail (Ch.4.3, a full-board cumulative trail,
+not a local snapshot), and the opponent's (possibly deceptive) natural-language
+hint — **never** the opponent's true position. See `integration_lab/audit/protocol_contract.md`
+for the full wire-level contract and `integration_lab/evidence/batch3_6/scent_timing_contract.md`
+for the book-citation audit behind this formulation.
 
-## Session recovery step C (new)
+## Architecture
 
-Canonical `declaration/2` schema frozen and verified byte-identical to the
-Police repo's (risk #14, resolved). Real cross-process HTTP validated for
-the first time: a 3x FastMCP lifecycle regression, a real one-sub-game
-series (`survival`, winner thief, 35 steps, both replay verifiers
-`VERIFIED`), a real six-sub-game series (6/6 games, mutual comparison 96/96
-checks passed), an independent tamper-detection check, and all 18 bounded
-failure drills — all genuinely passing. Fixed 6 real defects found only by
-actually running two independent processes against each other for the first
-time (sequence numbering, reveal wire shape/delivery model, envelope field
-mismatch, per-sub-game sequence scoping, inbox message accumulation) — see
-`CHANGELOG.md` and `integration_lab/audit/risk_register.md` risks #15-#16.
-Full evidence: `integration_lab/evidence/session_recovery_step_c/`.
+Two fully independent FastMCP peers (server + client in one OS process each), no
+central referee, no shared mutable state, no shared log/config file path. Every
+cross-peer message is sealed via SHA-256 commit-reveal before being revealed; a
+mutual end-of-game audit recomputes every hash. A local, per-peer state machine
+drives every lifecycle transition; illegal transitions are rejected, never
+silently ignored. Full detail: `docs/ARCHITECTURE.md`, `docs/PROTOCOL.md`,
+`docs/SECURITY.md`.
 
-## What's not implemented yet
+## Scent and belief model
 
-`EntropyEscapeThiefBrain` (the original candidate strategy — only the
-from-scratch baseline exists), a live GUI, a visual replay *viewer* (the
-headless verifier exists), Gmail reporting, public network exposure, and
-league play. A real two-process game/series and the mutual cross-repo audit
-**are now implemented and verified** (session recovery step C) — see above.
+Scent emission/decay: `τ_ij(t+1) = max(0, (1-ρ)·τ_ij(t) + Δτ_ij)`, emitted every
+turn (including STAY), decayed once per round. Belief is a normalized
+probabilistic update (prior → transition → barrier mask → scent → hint →
+normalize) — explicitly **not** claimed Bayesian-optimal. Structurally guaranteed
+(by a signature-introspection test, not just convention) that no belief-update
+function ever accepts the opponent's true position. Quantitatively confirmed
+(Batch 3.6, 200 real random walks): scent alone produces a uniquely-peaked
+candidate reading on 100% of turns, but that peak matches the true position only
+**30.5%** of the time — a confident-looking signal, not an exact-position leak,
+i.e. the Thief's own true cell is not being exposed to Police through this
+channel. Full detail: `docs/BELIEF_MODEL.md`.
 
-## Problem formulation
+## Strategies
 
-Distributed Cops-and-Robbers is framed as a two-agent, partially-observable pursuit
-game (Dec-POMDP-flavored): each peer observes only its own true state, the opponent's
-public scent trail, and the opponent's (possibly deceptive) natural-language hints —
-never the opponent's true position. See `docs/PLAN.md` for the formal diagrams and
-`integration_lab/audit/protocol_contract.md` for the wire-level contract both peers
-must satisfy to interoperate with any other group's implementation.
+- **`BaselineThiefBrain`** — a simple, original, from-scratch greedy baseline.
+- **`EntropyEscapeThiefBrain`** — the candidate advanced strategy: full-belief-
+  distribution evasion, bounded lookahead, real BFS mobility preservation,
+  chokepoint-aware barrier-threat prediction, risk-gated deceptive hints.
 
-## Architecture (summary)
+Neither is claimed superior to the other on survival rate (see Results below);
+`docs/STRATEGY.md` has the full design and `integration_lab/audit/strategy_proposals.md`
+the pre-registered evaluation methodology (written before any strategy code
+existed, to prevent post-hoc seed selection).
 
-Two fully independent FastMCP peers (server + client in one process), no central
-referee, no shared mutable state. Full detail in `docs/ARCHITECTURE.md`.
+## Results across batches
 
-## Game rules (summary)
+- **Batch 3**: held-out (100 games) and real-HTTP evaluation showed **100%
+  survival rate** for both baseline and advanced Thief — root-caused to a real
+  defect (see below), not a strategy-quality finding.
+- **Batch 3.5 (pipeline repair)**: found and fixed the real defect — Thief's
+  own belief update read a `police_scent` key that never existed in Police's
+  actual reveal dict (only `scent_grid` does), plus hint text was never parsed
+  into a region at all; also found and fixed a second defect where Thief's
+  honest capture-claim answer never reached Police over the wire. After
+  repair: **0% Thief survival rate in every matchup** — a complete reversal.
+- **Batch 3.6 (fairness/correctness audit)**: verified the 0% result is not
+  an artifact — no exact-position leak, no hint-verdict early disclosure,
+  correct capture/survival-threshold boundary handling, and (800 games across
+  7×7/9×9/11×11) the ceiling is a genuine game-design property that persists at
+  every board scale, with mean steps scaling proportionally. 6 deterministic
+  fixtures proved `EntropyEscapeThiefBrain` and `BaselineThiefBrain` choose
+  genuinely different actions from identical inputs; one scenario honestly
+  reports both brains coinciding on the same final action despite real
+  per-option mobility differences, rather than being forced into an artificial
+  divergence. **Final classification: C (genuine game-design ceiling) with D
+  (real behavioral differences) as a corollary** — not A, B, or E. No
+  win-rate superiority claim is made. `integration_lab/evidence/batch3_6/conclusion.md`.
+- **Batch 4A (reliability regression)**: before any GUI work began, three
+  consecutive real six-sub-game HTTP series (advanced vs advanced) all
+  completed cleanly (no orphan process, no socket leak, both replay verifiers
+  `VERIFIED` throughout), plus one bounded injected-delay scenario proving the
+  real deadline/watchdog machinery tolerates a slow-but-legal decision.
+  `integration_lab/evidence/batch4a/reliability/`.
 
-Binding numeric parameters come from Appendix F of the course's rule book, extracted
-and visually verified in `integration_lab/audit/binding_parameters.json` and
-`integration_lab/audit/visual_verification.md`. Headline values: 7x7 board (minimum),
-4-orthogonal + STAY movement, up to 14 barriers, up to 35 moves, 35-step survival
-threshold, 5x5 scent grid decaying at 0.10/turn from a center intensity of 0.9, and a
-**6-sub-game** series per opponent (constant).
+## Live GUI (Batch 4A)
 
-## Strategy (summary)
+`uv run python -m thief_peer peer --gui` launches a live Tkinter view showing
+**only this peer's own truth**: own position/path, public barriers (placed by
+Police, never a Police true position), local belief heatmap over the opponent
+(never a true-position field), sent/received hints, protocol/state-machine
+status, decision latency — behind a permanent "LIVE VIEW — OPPONENT TRUE
+POSITION HIDDEN" banner. Architecture: the real turn loop publishes typed
+events (`services/gui_events.py`) through an optional, off-by-default sink
+(`services/gui_sink.py`, same pattern as the existing diagnostic trace hook)
+into a thread-safe queue; a pure, Tkinter-free view model (`gui/view_model.py`)
+folds events into display state and is headlessly tested (22 tests, including
+a reflection-based scanner that fails the build if any GUI-reachable dataclass
+grows an `opponent_true_position`-shaped field). The background game loop runs
+on its own asyncio event loop in a separate thread so network activity never
+blocks the UI. Real two-process runs (a smoke sub-game and a full six-sub-game
+series, both `--gui`) completed successfully and replay-verified —
+`integration_lab/evidence/batch4a/gui_demo/`. Manual screenshot instructions:
+`screenshots/README.md`.
 
-Two brains are planned for this role: `BaselineThiefBrain` (a simple, original,
-from-scratch greedy baseline — not a copy of the reference implementation) and
-`EntropyEscapeThiefBrain` (our candidate original strategy). Neither has been
-implemented or benchmarked yet, and no superiority claim is made for either — see
-`integration_lab/audit/strategy_proposals.md` for the full design and
-`docs/STRATEGY.md` for the role-local summary.
+## Graphical replay viewer (Batch 4A)
 
-## Commit-reveal / security (summary)
+`uv run python -m thief_peer replay --gui --police-artifacts <dir> --thief-artifacts <dir>`
+shows both true trajectories (permitted only here, from finalized audited
+artifacts, never live memory), barriers, hints, scores, and a VERIFIED/TAMPERED
+banner. It reuses the existing, unmodified `services/replay_verifier.py` for
+this peer's own artifacts — a real cross-schema incompatibility was found and
+fixed while building this: this repo's own verifier cannot correctly recompute
+the opponent's differently-shaped commitment hashes, so the opponent's side is
+loaded for display only, honestly labeled `NOT_INDEPENDENTLY_VERIFIED_FROM_THIS_SIDE`,
+never a fabricated verdict. A real TAMPERED demonstration (a copy of real
+evidence, one field edited) is preserved at
+`integration_lab/evidence/batch4a/replay_demo/`; the original evidence was never
+touched.
 
-Every step is sealed with SHA-256 over canonical JSON before being revealed, and a
-mutual end-of-game audit re-verifies every hash. See `docs/SECURITY.md`.
+## Gmail reporter (Batch 4A, dry-run only)
 
-## GUI / replay (summary)
+`uv run python -m thief_peer report --artifacts-dir <dir>` builds the required
+structured-JSON report body (never free text) from real artifact files and
+prints it — no network call, no OAuth. `--send` exists in code (routed through
+a real token-bucket Gatekeeper with bounded retries/backoff/idempotency) but has
+**never been invoked**; it requires `GOOGLE_OAUTH_CREDENTIAL_DIR` (credentials
+live outside this repo) and is gated behind Manual Gate C. Scope is hardcoded to
+`gmail.send` only — `gmail.modify`/`.compose`/`.readonly`/full-mailbox scopes are
+rejected in code, not just documented. The reporter refuses to build a report
+from artifacts that fail the real replay verifier (tested,
+`integration_lab/evidence/batch4a/gmail_dry_run/invalid_report_rejection.json`).
+Mandatory recipient: `rmisegal+uoh26finalgame@gmail.com` (Appendix F Table 20).
 
-Planned: a live GUI showing only this peer's own true state (never the opponent's true
-position), and a replay viewer that recomputes every hash and reports VERIFIED/TAMPERED.
-Not implemented yet. See `docs/PRD_gui_replay.md`.
+## Public-network preparation (Batch 4A, never activated)
 
-## Experiments
+`docs/PUBLIC_NETWORK_SETUP.md` and `docs/LEAGUE_RUNBOOK.md` describe what
+exists (a tested bearer-token module, `infrastructure/public_auth.py`, constant-
+time comparison, env-var-only token) and what deliberately does not (the
+server's existing hard localhost-only bind guard is unchanged; no tunnel has
+ever been started; no public endpoint has ever been contacted).
 
-Not run yet. Tuning-seed vs. held-out-seed split is pre-registered in
-`integration_lab/audit/strategy_proposals.md` Section 0, before any strategy code
-exists, specifically to prevent post-hoc seed selection.
+## Security
+
+Every step is sealed with SHA-256 commit-reveal over canonical JSON before
+being revealed; a mutual end-of-game audit re-verifies every hash, nonce, and
+sequence number. Credentials/tokens never live in this repo (`GOOGLE_OAUTH_CREDENTIAL_DIR`/
+`PUBLIC_BIND_TOKEN`, both env-var-only, never logged). See `docs/SECURITY.md`.
+
+## Reliability and secondary metrics
+
+Zero-variance, deterministic capture-step counts on the binding board are a
+real, reconfirmed property (not a bug) that limits statistical power for
+rate-based comparisons — addressed via causal-ablation and behavioral-fixture
+methods instead of aggregate rate comparisons. Real non-ceiling differences:
+measurable mean reachable-region size (real BFS via
+`entropy_escape_utility.reachable_area`) differing by matchup on paired seeds.
+Full data: `integration_lab/evidence/batch3_6/secondary_metrics.csv`.
 
 ## Limitations
 
-See `docs/LIMITATIONS.md` — kept current, updated every phase.
+See `docs/LIMITATIONS.md` — kept current every batch, never claiming a
+readiness level higher than `integration_lab/audit/PROGRESS.md` supports.
 
 ## Reproduction
 
 ```
 uv sync
-uv run python -m thief_peer negotiate-smoke   # IMPLEMENTED (Batch 1) -- requires
-                                                # police_peer's own negotiate-smoke
-                                                # running too; see
-                                                # integration_lab/run_negotiation_smoke.py
-uv run python -m thief_peer peer --role thief --no-gui   # NOT YET IMPLEMENTED
+uv run pytest
+uv run python -m thief_peer peer --no-gui --config-dir config/thief \
+  --opponent-url http://127.0.0.1:8901/mcp   # requires police_peer running too
+uv run python -m thief_peer peer --gui ...                 # live GUI
+uv run python -m thief_peer replay --gui --police-artifacts <dir> --thief-artifacts <dir>
+uv run python -m thief_peer report --artifacts-dir <dir>   # Gmail dry-run
+uv run python -m thief_peer verify-replay --artifacts <dir>
 ```
 
-## Third-party attribution
+Full reproducibility notes (exact commands, seed ranges) per batch:
+`integration_lab/evidence/batch3_6/reproducibility.md`.
+
+## Third-party attribution and licensing caution
 
 See `THIRD_PARTY_NOTICES.md`. Reused elements are limited to small, attributed
-adaptations (a commit-reveal hash shape, a token-bucket formula, an OAuth bootstrap
-pattern, a protocol naming convention) — never substantial verbatim code. Full
-classification: `integration_lab/audit/reference_reuse_plan.md`.
+adaptations (a commit-reveal hash shape, a token-bucket formula, an OAuth
+bootstrap pattern, a protocol naming convention) — never substantial verbatim
+code. Full classification: `integration_lab/audit/reference_reuse_plan.md`.
+**Repository visibility (public vs. private) is an unresolved decision**
+(Manual Gate E) — the reference repository's EULA does not unambiguously
+authorize redistributing adapted/attributed elements into a separate public
+repository; do not make this repository public without your explicit review.
 
-## Submission tag
+## Current readiness and remaining manual gates
 
-Not yet tagged. Will be `v1.0-submission` once `SUBMISSION_READY` (see
-`integration_lab/audit/PROGRESS.md` for current readiness level — `LOCAL_READY`
-as of session recovery step C; `NETWORK_READY`/`LEAGUE_READY`/`SUBMISSION_READY`
-not yet reached).
+**`LOCAL_READY`.** Not `NETWORK_READY`/`LEAGUE_READY`/`SUBMISSION_READY`.
+Remaining, all requiring your explicit action (`integration_lab/audit/manual_gates.md`):
+Gate A (public endpoint + tunnel token), Gate B (real opponent identity/URL/schedule),
+Gate C (Gmail OAuth consent + send approval), Gate E (repository visibility),
+Gate F (GitHub repo creation/push).
