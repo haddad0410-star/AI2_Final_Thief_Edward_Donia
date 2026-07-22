@@ -55,7 +55,7 @@ class StrategyConfig:
 class EmailConfig:
     recipient: str = ""
     mode: str = "disabled"
-    credentials_dir_env_var: str = "GMAIL_CREDENTIALS_DIR"
+    credentials_dir_env_var: str = "GOOGLE_OAUTH_CREDENTIAL_DIR"
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +98,7 @@ class PrivateGameConfig:
             recipient=email_raw.get("recipient", ""),
             mode=email_raw.get("mode", "disabled"),
             credentials_dir_env_var=email_raw.get(
-                "credentials_dir_env_var", "GMAIL_CREDENTIALS_DIR"
+                "credentials_dir_env_var", "GOOGLE_OAUTH_CREDENTIAL_DIR"
             ),
         )
         strategy_raw = data.get("strategy", {})

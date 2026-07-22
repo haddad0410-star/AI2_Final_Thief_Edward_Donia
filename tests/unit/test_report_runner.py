@@ -1,0 +1,120 @@
+"""Batch 4A Task 12: report_runner refuses to build a report from artifacts
+that fail the real replay verifier -- reuses the same fixture-writing
+helpers as ``tests/security/test_replay_verifier.py``.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from thief_peer.domain.captures import SubGameResult
+from thief_peer.domain.sealing import AuditOutcome, AuditReport, SealedTurnPayload, seal
+from thief_peer.sdk.report_runner import (
+    ReportRefusedError,
+    build_report_from_artifacts,
+    run_dry_run,
+)
+from thief_peer.services.artifact_builders import build_log_artifact, build_result_artifact
+from thief_peer.services.artifact_models import ConfigArtifact
+from thief_peer.services.artifacts import (
+    config_filename,
+    log_filename,
+    result_filename,
+    save_artifact,
+)
+from thief_peer.services.series_runtime import SeriesResult, SeriesSubGameRecord
+from thief_peer.shared.canonical_json import canonical_json_bytes
+from thief_peer.shared.config_loader import sha256_hex
+
+CONFIG_DIR = Path(__file__).resolve().parents[2] / "config" / "thief"
+UID = "abcabcab-1111-2222-3333-444444444444"
+GID = "edward-donia"
+N_GAMES = 1
+
+
+def _payload(sub_game: int, step: int) -> SealedTurnPayload:
+    return SealedTurnPayload(
+        step=step,
+        role="thief",
+        sub_game_number=sub_game,
+        state=f"pos={step % 7},0;visited={step + 1}",
+        move="N",
+        barrier_placed=None,
+        capture_claim=(step % 7, 0),
+        claim_response=True,
+        win_claim=False,
+        intent="truth",
+        hint="north looks fine",
+        scent_digest="d" * 64,
+        scent_grid=((0.0, 0.0), (0.0, 0.0)),
+        timestamp="2026-07-18T00:00:00+00:00",
+        nonce=f"{sub_game:032x}{step:032x}",
+        config_sha256=sha256_hex(CONFIG_DIR / "game.json"),
+    )
+
+
+def _write_bundle(directory: Path) -> None:
+    with open(CONFIG_DIR / "game.json", encoding="utf-8") as handle:
+        terms = json.load(handle)
+    config_sha = sha256_hex(CONFIG_DIR / "game.json")
+    for n in range(1, N_GAMES + 1):
+        recs = tuple(seal(_payload(n, s)) for s in range(2))
+        save_artifact(
+            ConfigArtifact(UID, GID, n, config_sha, terms), directory / config_filename(GID, n)
+        )
+        log = build_log_artifact(
+            UID, GID, n, recs, AuditReport(AuditOutcome.VERIFIED, (), (), "ok")
+        )
+        save_artifact(log, directory / log_filename(GID, n))
+    sub_records = tuple(
+        SeriesSubGameRecord(n, SubGameResult.CAPTURE, 20, 5, 2, True) for n in range(1, N_GAMES + 1)
+    )
+    series = SeriesResult(sub_records, 20 * N_GAMES, 5 * N_GAMES, "completed", None)
+    result = build_result_artifact(UID, GID, "deadbeef", GID, config_sha, series)
+    save_artifact(result, directory / result_filename(GID))
+    decl = {
+        "schema_version": "declaration/1",
+        "game_uid": UID,
+        "game_id": GID,
+        "role": "thief",
+        "group_id": GID,
+        "members": [],
+        "hardware": {},
+        "git_commit": "deadbeef",
+        "banter_provider": "template",
+    }
+    (directory / f"declaration_{GID}.json").write_bytes(canonical_json_bytes(decl) + b"\n")
+
+
+def test_valid_artifacts_produce_a_report(tmp_path) -> None:
+    _write_bundle(tmp_path)
+    report = build_report_from_artifacts(tmp_path)
+    assert report["game_uid"] == UID
+
+
+def test_dry_run_works_end_to_end(tmp_path) -> None:
+    _write_bundle(tmp_path)
+    result = run_dry_run(tmp_path)
+    assert result["would_send_to"] == "rmisegal+uoh26finalgame@gmail.com"
+
+
+def test_tampered_artifacts_are_refused(tmp_path) -> None:
+    _write_bundle(tmp_path)
+    log_path = tmp_path / log_filename(GID, 1)
+    data = json.loads(log_path.read_text())
+    data["steps"][0]["commit_hash"] = "0" * 64
+    log_path.write_text(json.dumps(data))
+    try:
+        build_report_from_artifacts(tmp_path)
+        raise AssertionError("expected ReportRefusedError")
+    except ReportRefusedError as exc:
+        assert "unverified" in str(exc) or "TAMPERED" in str(exc)
+
+
+def test_missing_artifacts_are_refused(tmp_path) -> None:
+    try:
+        build_report_from_artifacts(tmp_path)
+        raise AssertionError("expected ReportRefusedError")
+    except ReportRefusedError:
+        pass
