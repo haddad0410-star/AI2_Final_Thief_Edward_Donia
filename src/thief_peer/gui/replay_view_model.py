@@ -1,19 +1,17 @@
-"""Batch 4A Task 7/8: graphical replay viewer's data layer. Reuses the
-REAL, existing, independent replay-verification engine
-(``services.replay_verifier.verify_replay``/``services.replay_loader.load_bundle``)
-unmodified -- this module never recomputes a hash or re-implements any
-cryptographic check itself; it only reshapes the SAME verified bundles for
-display. No Tkinter import here, so this is headlessly testable (Task 8).
+"""Batch 4B Task 3/4/9: graphical replay viewer's data layer -- now capable
+of FULL BILATERAL verification. The actual verification logic lives in
+``services.bilateral_verify`` (shared with the Gmail report gate, Task 9,
+so neither layer duplicates it); this module only shapes that result plus
+the per-step display data (``ReplaySubGame``) for the viewer.
 
-Unlike the live view model, both true trajectories are permitted here --
-this module only ever reads FINALIZED, audited artifact files from disk
-(each side's OWN independently-written 14-file set), never live private
-runtime memory. Showing BOTH sides' true paths together requires BOTH
-sides' artifact directories, since each side's own sealed log only ever
-records its own true position -- reading the opponent's already-published
-JSON artifact format is not a code dependency on the opponent's package,
-just a public data-format parse (same as any third-party audit tool would
-do).
+Legacy note (Rule 10): artifacts sealed under the OLD, pre-Batch-4B
+per-repo schemas (Thief's ``sealed-turn/2``, Police's ``commit-reveal/2``)
+remain readable for path/hint DISPLAY, but a genuinely cross-repo LEGACY
+record can still not be cryptographically re-verified by the other side
+-- this is an explicit, honestly-labeled legacy limitation, never
+silently hidden, and never applied to current ``commitment/1`` records.
+
+No Tkinter import here, so this is headlessly testable (Task 8).
 """
 
 from __future__ import annotations
@@ -22,17 +20,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from thief_peer.gui.replay_steps import ReplaySubGame, build_sub_game
+from thief_peer.services.bilateral_verify import (
+    LEGACY_VERDICT,
+    SideVerification,
+    verify_bilateral,
+)
 from thief_peer.services.replay_loader import load_bundle
-from thief_peer.services.replay_verifier import ReplayReport, verify_replay
 
-
-@dataclass(frozen=True, slots=True)
-class SideVerification:
-    directory: str
-    verdict: str
-    ok: bool
-    findings: tuple[str, ...]
-    independently_verified: bool
+__all__ = ["LEGACY_VERDICT", "ReplayViewModel", "SideVerification", "build_replay_view"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,67 +36,39 @@ class ReplayViewModel:
     thief: SideVerification
     verdict: str
     verification_ok: bool
+    full_bilateral_verification: bool
     declaration: dict | None
     config_sha256_prefix: str
     sub_games: tuple[ReplaySubGame, ...] = field(default_factory=tuple)
 
 
-def _own_side(directory: Path) -> tuple[SideVerification, dict]:
-    """Thief's own artifacts: cryptographically verified for real by the
-    real, unmodified engine (this repo's own crypto module produced them)."""
-    report: ReplayReport = verify_replay(directory)
-    bundle = load_bundle(directory)
-    side = SideVerification(
-        directory=str(directory),
-        verdict=report.verdict,
-        ok=report.ok,
-        findings=tuple(report.findings),
-        independently_verified=True,
-    )
-    return side, bundle
-
-
-def _opponent_side(directory: Path) -> tuple[SideVerification, dict]:
-    """Police's artifacts use an independently-built sealing schema
-    (``commit-reveal/2`` vs this repo's ``sealed-turn/2``) -- Thief's own
-    ``verify_replay`` recomputes commitment hashes using ITS OWN
-    canonicalization and would report a false TAMPERED on genuinely valid
-    Police data (a real cross-schema incompatibility found while building
-    this viewer, not a tamper). Never claim a verdict this repo's crypto
-    module cannot actually compute: load-only, for display, with an
-    honest ``independently_verified=False``. The real verdict for this
-    side is `police_peer`'s own ``verify-replay``/replay viewer."""
-    bundle = load_bundle(directory)
-    side = SideVerification(
-        directory=str(directory),
-        verdict="NOT_INDEPENDENTLY_VERIFIED_FROM_THIS_SIDE",
-        ok=True,
-        findings=(),
-        independently_verified=False,
-    )
-    return side, bundle
-
-
 def build_replay_view(police_dir: Path, thief_dir: Path) -> ReplayViewModel:
     """Build the display model from BOTH sides' independently-written
-    artifact sets. Only Thief's OWN artifacts are cryptographically
-    re-verified here (by the real, unmodified engine); Police's are loaded
-    for path/hint display only -- see ``police_peer``'s own replay viewer
-    for Police's real verdict. The overall banner reflects Thief's own
-    verification result only, never a fabricated claim about Police's."""
-    thief_side, thief_bundle = _own_side(thief_dir)
-    police_side, police_bundle = _opponent_side(police_dir)
+    artifact sets, verifying EACH side with this repo's own real verifier.
+    ``full_bilateral_verification`` is true only when BOTH sides were
+    independently verified AND both report VERIFIED."""
+    police_side, thief_side, full_bilateral = verify_bilateral(police_dir, thief_dir)
+    police_bundle = load_bundle(police_dir)
+    thief_bundle = load_bundle(thief_dir)
     police_logs = {log.get("sub_game_number"): log for log in police_bundle.logs}
     thief_logs = {log.get("sub_game_number"): log for log in thief_bundle.logs}
     result = thief_bundle.result or police_bundle.result or {}
     sub_games = tuple(
         build_sub_game(entry, police_logs, thief_logs) for entry in result.get("sub_games", [])
     )
+    if full_bilateral:
+        verdict, verification_ok = "VERIFIED", True
+    else:
+        verdict = thief_side.verdict if not thief_side.ok else police_side.verdict
+        verification_ok = thief_side.ok and (
+            police_side.ok if police_side.independently_verified else True
+        )
     return ReplayViewModel(
         police=police_side,
         thief=thief_side,
-        verdict=thief_side.verdict,
-        verification_ok=thief_side.ok,
+        verdict=verdict,
+        verification_ok=verification_ok,
+        full_bilateral_verification=full_bilateral,
         declaration=thief_bundle.declaration or police_bundle.declaration,
         config_sha256_prefix=str(result.get("config_sha256", ""))[:8],
         sub_games=sub_games,

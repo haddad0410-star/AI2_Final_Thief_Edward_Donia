@@ -142,6 +142,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     report = subparsers.add_parser("report", help="Gmail report (dry-run by default)")
     report.add_argument("--artifacts-dir", required=True)
+    report.add_argument(
+        "--opponent-artifacts-dir", default=None, help="gates on bilateral verification"
+    )
     report.add_argument("--send", action="store_true", help="real send (requires credentials)")
     return parser
 

@@ -26,7 +26,7 @@ def _payload(
         step=0,
         role="thief",
         sub_game_number=1,
-        state="pos=0,0;visited=1",
+        position=(0, 0),
         move="N",
         intent=intent,
         hint=hint,

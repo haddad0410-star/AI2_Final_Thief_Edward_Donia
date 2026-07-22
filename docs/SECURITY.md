@@ -125,3 +125,54 @@ audit implementation is a later batch. This document will be updated again then.
   hashes — see `docs/LIMITATIONS.md`'s Batch 4A section for the full
   explanation and fix (never claim a verdict this repo cannot actually
   compute).
+
+## Batch 4B additions — bilateral commitment verification (resolves the
+## Batch 4A cross-schema finding above)
+
+- **Root cause, precisely identified**: the Batch 4A finding traced to two
+  narrow, mechanical field-shape divergences, not an inherent consequence
+  of independent implementation — this repo's `state` field was an opaque
+  digest string (`"pos=R,C;visited=N"`) that Police's verifier could never
+  parse as a position, while this repo's `config_sha256` was already a
+  genuine top-level field (Police's was nested inside its own `state`
+  dict). 14 of ~16 payload fields already had identical shape. Both repos'
+  canonical-JSON encoders were already byte-identical. Full field-by-field
+  audit: `integration_lab/evidence/batch4b/commitment_schema_audit.md`.
+- **Canonical schema unified** (`domain/sealing/payload.py`,
+  `CURRENT_SCHEMA_VERSION = "commitment/1"`): `state` replaced by a flat
+  `position` tuple field (dropping the `visited` counter that was
+  previously folded into the digest string — a deliberate simplification,
+  since `visited` was never itself part of the protocol's binding field
+  set). `CANONICAL_FIELD_SET` (17 keys) is now identical in both repos.
+  `to_canonical_dict()` is schema-version-aware — legacy
+  `sealed-turn/1`/`/2` records still canonicalize to their EXACT original
+  shape (via a `legacy_state` passthrough field that preserves the real
+  original `visited` count verbatim, since it is per-step state this
+  dataclass no longer tracks and cannot re-derive), so all Batch 1-4A
+  evidence remains self-verifiable without rewriting any file on disk.
+- **Real bilateral verification, not just a shared schema on paper**:
+  because the field SET is now unified, this repo's EXISTING,
+  already-tested verification pipeline (`services/replay_verifier.py`,
+  `replay_checks.py`) correctly recomputes and verifies a genuine Police
+  `commitment/1` record too — confirmed by 10 byte-identical cross-repo
+  test vectors (`integration_lab/evidence/batch4b/test_vectors/`), a
+  21-category bilateral tamper matrix where BOTH repos' own verifiers
+  independently detect every mutation
+  (`integration_lab/evidence/batch4b/tamper_matrix/`, `all_detected=true`),
+  and a real six-sub-game two-process FastMCP series where both sides'
+  `replay` command reports `FULL_BILATERAL_VERIFICATION=true`
+  (`integration_lab/evidence/batch4b/bilateral_series/`). This repo never
+  imports `police_peer`; it only calls its own crypto/verifier on
+  whichever directory it's given (`services/bilateral_verify.py`).
+- **New role-consistency and unknown-field checks**
+  (`replay_checks.py::_check_role_fields`/`_check_unknown_fields`): a
+  Thief record carrying a Police-only `barrier_placed`/`capture_claim`
+  value (or vice versa), or any `commitment/1` record carrying a field
+  outside the canonical set, is now flagged as tampered — closing a class
+  of forgery the schema-shape fix alone would not have caught.
+- **Gmail bilateral gate** (`sdk/report_runner.py`, Task 9): `report
+  --opponent-artifacts-dir <dir>` gates report construction (dry-run AND
+  `--send`) on full bilateral verification via
+  `services/bilateral_verify.py`, not merely this side's own
+  `verify_replay`. Real evidence, both accept and refuse paths:
+  `integration_lab/evidence/batch4b/gmail_bilateral_gate/`.

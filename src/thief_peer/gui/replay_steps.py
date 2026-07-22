@@ -39,9 +39,15 @@ class ReplaySubGame:
 
 
 def _position(step_dict: dict) -> tuple[int, int] | None:
-    """Handles both independently-built state-digest shapes: this repo's
-    own ``"pos=R,C;visited=N"`` string and Police's ``{"position": [r, c],
-    ...}`` dict -- a public JSON-artifact-format parse, not a code import."""
+    """Batch 4B: a current ``commitment/1`` step carries a top-level
+    ``position`` list -- checked first. Legacy fallbacks (this repo's own
+    old ``"pos=R,C;visited=N"`` digest string, and Police's old nested
+    ``{"position": [r, c], ...}`` dict) remain for displaying preserved
+    Batch 1-4A evidence -- a public JSON-artifact-format parse, not a code
+    import."""
+    if "position" in step_dict and step_dict["position"] is not None:
+        row, col = step_dict["position"]
+        return (row, col)
     state = step_dict.get("state")
     if isinstance(state, str):
         m = _THIEF_STATE_RE.search(state)

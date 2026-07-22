@@ -20,7 +20,7 @@ def make_payload(step: int = 0, nonce: str | None = None, **overrides: object) -
         "step": step,
         "role": "thief",
         "sub_game_number": 1,
-        "state": f"pos=3,{3 + step}",
+        "position": (3, 3 + step),
         "move": "E",
         "intent": "truth",
         "hint": "The northern avenues feel exposed right now.",

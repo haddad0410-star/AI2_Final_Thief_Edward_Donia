@@ -82,9 +82,3 @@ class SubGameState:
             exchange=CommitRevealExchange(),
             visited={start},
         )
-
-    def state_digest(self) -> str:
-        """A compact, sealable representation of OWN state (never the opponent's).
-        Includes own cell and visited-count -- enough to bind the record without
-        leaking anything private about the opponent."""
-        return f"pos={self.position.row},{self.position.col};visited={len(self.visited)}"

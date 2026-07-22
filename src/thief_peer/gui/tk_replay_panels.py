@@ -16,14 +16,21 @@ class VerdictBanner(tk.Frame):
         self.findings.pack(fill="x")
 
     def render(self, model: ReplayViewModel) -> None:
-        ok = model.verification_ok
-        self.label.config(
-            text=f"THIS PEER'S OWN REPLAY VERDICT: {model.verdict}"
-            f" (opponent's own verdict: {model.police.verdict})",
-            bg="#1f7a1f" if ok else "#7a1f1f",
-        )
+        if model.full_bilateral_verification:
+            text = "VERIFIED — BOTH PEERS INDEPENDENTLY VERIFIED"
+            bg = "#1f7a1f"
+        elif not model.verification_ok:
+            text = f"TAMPERED — {model.verdict}"
+            bg = "#7a1f1f"
+        else:
+            text = (
+                f"PARTIAL: thief={model.thief.verdict}, police={model.police.verdict}"
+                " (one side uses a legacy pre-commitment/1 schema)"
+            )
+            bg = "#7a6a1f"
+        self.label.config(text=text, bg=bg)
         self.findings.delete(0, "end")
-        for f in model.thief.findings:
+        for f in (*model.thief.findings, *model.police.findings):
             self.findings.insert("end", f)
 
 

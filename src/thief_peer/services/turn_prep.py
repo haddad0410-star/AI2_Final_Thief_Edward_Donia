@@ -17,7 +17,7 @@ def seal_turn(state: SubGameState, direction: Direction, intent: HintIntent, hin
         step=state.step,
         role="thief",
         sub_game_number=state.sub_game_number,
-        state=state.state_digest(),
+        position=(state.position.row, state.position.col),
         move=direction.value,
         intent=intent.value,
         hint=hint,

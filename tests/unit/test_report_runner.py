@@ -33,33 +33,34 @@ GID = "edward-donia"
 N_GAMES = 1
 
 
-def _payload(sub_game: int, step: int) -> SealedTurnPayload:
+def _payload(sub_game: int, step: int, *, role: str = "thief") -> SealedTurnPayload:
+    thief_only = role == "thief"
     return SealedTurnPayload(
         step=step,
-        role="thief",
+        role=role,
         sub_game_number=sub_game,
-        state=f"pos={step % 7},0;visited={step + 1}",
-        move="N",
-        barrier_placed=None,
-        capture_claim=(step % 7, 0),
-        claim_response=True,
+        position=(step % 7, 0),
+        move="N" if thief_only else "S",
+        barrier_placed=None if thief_only else (2, 2),
+        capture_claim=None,
+        claim_response=True if thief_only else None,
         win_claim=False,
         intent="truth",
-        hint="north looks fine",
+        hint="north looks fine" if thief_only else "south looks fine",
         scent_digest="d" * 64,
         scent_grid=((0.0, 0.0), (0.0, 0.0)),
         timestamp="2026-07-18T00:00:00+00:00",
-        nonce=f"{sub_game:032x}{step:032x}",
+        nonce=f"{role}{sub_game:031x}{step:032x}",
         config_sha256=sha256_hex(CONFIG_DIR / "game.json"),
     )
 
 
-def _write_bundle(directory: Path) -> None:
+def _write_bundle(directory: Path, *, role: str = "thief") -> None:
     with open(CONFIG_DIR / "game.json", encoding="utf-8") as handle:
         terms = json.load(handle)
     config_sha = sha256_hex(CONFIG_DIR / "game.json")
     for n in range(1, N_GAMES + 1):
-        recs = tuple(seal(_payload(n, s)) for s in range(2))
+        recs = tuple(seal(_payload(n, s, role=role)) for s in range(2))
         save_artifact(
             ConfigArtifact(UID, GID, n, config_sha, terms), directory / config_filename(GID, n)
         )
@@ -77,7 +78,7 @@ def _write_bundle(directory: Path) -> None:
         "schema_version": "declaration/1",
         "game_uid": UID,
         "game_id": GID,
-        "role": "thief",
+        "role": role,
         "group_id": GID,
         "members": [],
         "hardware": {},
@@ -118,3 +119,47 @@ def test_missing_artifacts_are_refused(tmp_path) -> None:
         raise AssertionError("expected ReportRefusedError")
     except ReportRefusedError:
         pass
+
+
+def test_bilateral_gate_accepts_when_both_sides_verified(tmp_path) -> None:
+    own_dir, opp_dir = tmp_path / "own", tmp_path / "opp"
+    own_dir.mkdir()
+    opp_dir.mkdir()
+    _write_bundle(own_dir, role="thief")
+    _write_bundle(opp_dir, role="police")
+    result = run_dry_run(own_dir, opp_dir)
+    assert result["would_send_to"] == "rmisegal+uoh26finalgame@gmail.com"
+
+
+def test_bilateral_gate_refuses_when_own_side_tampered(tmp_path) -> None:
+    own_dir, opp_dir = tmp_path / "own", tmp_path / "opp"
+    own_dir.mkdir()
+    opp_dir.mkdir()
+    _write_bundle(own_dir, role="thief")
+    _write_bundle(opp_dir, role="police")
+    log_path = own_dir / log_filename(GID, 1)
+    data = json.loads(log_path.read_text())
+    data["steps"][0]["commit_hash"] = "0" * 64
+    log_path.write_text(json.dumps(data))
+    try:
+        build_report_from_artifacts(own_dir, opp_dir)
+        raise AssertionError("expected ReportRefusedError")
+    except ReportRefusedError as exc:
+        assert "bilateral" in str(exc)
+
+
+def test_bilateral_gate_refuses_when_opponent_side_tampered(tmp_path) -> None:
+    own_dir, opp_dir = tmp_path / "own", tmp_path / "opp"
+    own_dir.mkdir()
+    opp_dir.mkdir()
+    _write_bundle(own_dir, role="thief")
+    _write_bundle(opp_dir, role="police")
+    log_path = opp_dir / log_filename(GID, 1)
+    data = json.loads(log_path.read_text())
+    data["steps"][0]["hint"] = "tampered"
+    log_path.write_text(json.dumps(data))
+    try:
+        build_report_from_artifacts(own_dir, opp_dir)
+        raise AssertionError("expected ReportRefusedError")
+    except ReportRefusedError as exc:
+        assert "bilateral" in str(exc)

@@ -25,7 +25,14 @@ def replay(args: argparse.Namespace) -> int:
     if not args.gui:
         model = build_replay_view(police_dir, thief_dir)
         print(f"REPLAY VERDICT: {model.verdict}")
-        for f in model.thief.findings:
+        print(f"FULL_BILATERAL_VERIFICATION={str(model.full_bilateral_verification).lower()}")
+        print(
+            f"thief: independently_verified={model.thief.independently_verified} verdict={model.thief.verdict}"
+        )
+        print(
+            f"police: independently_verified={model.police.independently_verified} verdict={model.police.verdict}"
+        )
+        for f in (*model.thief.findings, *model.police.findings):
             print(f"  - {f}")
         return 0 if model.verification_ok else 2
     from thief_peer.gui.tk_replay_app import ReplayApp
