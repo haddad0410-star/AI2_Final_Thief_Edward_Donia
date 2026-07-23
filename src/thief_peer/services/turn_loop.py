@@ -25,6 +25,7 @@ from thief_peer.services.belief_update import update_belief
 from thief_peer.services.capture_resolution import resolve_capture
 from thief_peer.services.outcomes import TurnResult
 from thief_peer.services.subgame_state import SubGameState
+from thief_peer.services.turn_exchange import ExchangeError, deliver_commit_and_reveal
 from thief_peer.services.turn_messages import commitment_message, reveal_message
 from thief_peer.services.turn_prep import absorb_public_evidence, seal_turn
 from thief_peer.strategy.decision import ThiefDecisionInput
@@ -40,9 +41,10 @@ async def run_turn(state: SubGameState, deps) -> TurnResult:
     """Run a single turn; returns whether the sub-game ended and how."""
     try:
         return await _run_turn(state, deps)
-    except (PeerUnavailableError, KeyError, ValueError) as exc:
+    except (PeerUnavailableError, KeyError, ValueError, ExchangeError) as exc:
+        progress = exc.progress if isinstance(exc, ExchangeError) else None
         state.machine.force_error(str(exc))
-        gui.exchange_failed(state, deps.config_sha256, state.machine.state.value)
+        gui.exchange_failed(state, deps.config_sha256, state.machine.state.value, progress)
         gui.result_for(
             state,
             "technical_loss",
@@ -100,24 +102,18 @@ async def _run_turn(state: SubGameState, deps) -> TurnResult:
     state.machine.apply(_ev(_EV.MOVE_DECIDED))
 
     state.machine.apply(_ev(_EV.COMMIT_SENT))
-    ack = await deps.gateway.deliver_turn(
-        commitment_message(record, deps.game_uid, deps.config_sha256)
+    was_confirming_prior_capture = state.pending_claim_response is True
+    outcome = await deliver_commit_and_reveal(
+        deps.gateway,
+        commitment_message(record, deps.game_uid, deps.config_sha256),
+        reveal_message(record, deps.game_uid, deps.config_sha256),
     )
-    if not ack.get("ok"):
-        raise ValueError(f"commitment rejected: {ack}")
     state.exchange.acknowledge(state.step)
     state.machine.apply(_ev(_EV.ACK_RECEIVED))
-
-    was_confirming_prior_capture = state.pending_claim_response is True
-
-    reveal_ack = await deps.gateway.deliver_turn(
-        reveal_message(record, deps.game_uid, deps.config_sha256)
-    )
-    if not reveal_ack.get("ok"):
-        raise ValueError(f"reveal rejected: {reveal_ack}")
     state.exchange.reveal(state.step, record)
     state.machine.apply(_ev(_EV.REVEAL_SENT))
     state.records.append(record)
+    reveal_ack = outcome.reveal_ack
 
     # If the reveal just sent above carried a True ``claim_response``, that
     # answer was already computed and pending from LAST turn (the

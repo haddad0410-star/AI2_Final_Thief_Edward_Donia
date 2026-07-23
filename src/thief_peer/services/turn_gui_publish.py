@@ -55,16 +55,48 @@ def decision(
 
 
 def exchange_ok(state, hint_text: str, config_sha256: str, machine_state: str) -> None:
-    _exchange(state, True, "reveal", hint_text, state.board.barriers, config_sha256, machine_state)
+    # Reaching here means all four real substeps completed.
+    _exchange(
+        state,
+        True,
+        True,
+        True,
+        True,
+        "reveal",
+        hint_text,
+        state.board.barriers,
+        config_sha256,
+        machine_state,
+    )
 
 
-def exchange_failed(state, config_sha256: str, machine_state: str) -> None:
-    _exchange(state, False, "technical_failure", "", (), config_sha256, machine_state)
+def exchange_failed(state, config_sha256: str, machine_state: str, progress=None) -> None:
+    # ``progress`` carries the REAL per-substep progress made before the
+    # fault (see services.turn_exchange); a non-exchange runtime fault
+    # (progress=None) claims none of the three.
+    commit_sent = getattr(progress, "commit_sent", False)
+    ack_received = getattr(progress, "ack_received", False)
+    reveal_sent = getattr(progress, "reveal_sent", False)
+    _exchange(
+        state,
+        commit_sent,
+        ack_received,
+        reveal_sent,
+        False,
+        "technical_failure",
+        "",
+        (),
+        config_sha256,
+        machine_state,
+    )
 
 
 def _exchange(
     state,
-    ok: bool,
+    commit_sent: bool,
+    ack_received: bool,
+    reveal_sent: bool,
+    reveal_received: bool,
     message_type: str,
     hint_text: str,
     barriers,
@@ -75,10 +107,10 @@ def _exchange(
         TurnExchangeEvent(
             sub_game_number=state.sub_game_number,
             step=state.step,
-            commit_sent=True,
-            ack_received=ok,
-            reveal_sent=ok,
-            reveal_received=ok,
+            commit_sent=commit_sent,
+            ack_received=ack_received,
+            reveal_sent=reveal_sent,
+            reveal_received=reveal_received,
             last_message_type=message_type,
             received_hint_text=hint_text,
             barriers=tuple((b.row, b.col) for b in barriers),
