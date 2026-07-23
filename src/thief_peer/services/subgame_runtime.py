@@ -10,12 +10,14 @@ TECHNICAL_LOSS outcome, never a hang.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from thief_peer.domain.captures import SubGameResult
 from thief_peer.domain.positions import Position
 from thief_peer.domain.scoring import score_sub_game
 from thief_peer.domain.sealing import audit_sealed_records
 from thief_peer.domain.state_machine import EventKind, PeerState, PeerStateMachine, TransitionEvent
+from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_health
 from thief_peer.services.outcomes import SubGameRunResult
 from thief_peer.services.subgame_deps import SubGameDeps, make_deps  # noqa: F401  (re-exported)
 from thief_peer.services.subgame_state import SubGameState
@@ -53,7 +55,11 @@ class SubGameRuntime:
             self.state.machine.apply(TransitionEvent(kind=kind, detail=detail))
 
     async def run(
-        self, max_turns: int | None = None, *, bootstrap: bool = True
+        self,
+        max_turns: int | None = None,
+        *,
+        bootstrap: bool = True,
+        opponent_url: str | None = None,
     ) -> SubGameRunResult:
         """Run turns until a typed outcome; then self-audit and score.
 
@@ -89,6 +95,7 @@ class SubGameRuntime:
         """
         if bootstrap:
             self._fast_forward_to_waiting()
+            await self._await_opponent_ready(opponent_url)
         cap = max_turns if max_turns is not None else self._deps.survival_threshold + 1
         try:
             for _ in range(cap):
@@ -99,6 +106,16 @@ class SubGameRuntime:
             self.abort("cancelled")
             raise
         return self.abort("turn cap exhausted before a natural sub-game outcome")
+
+    @staticmethod
+    async def _await_opponent_ready(opponent_url: str | None) -> None:
+        # Called right after leaving INITIALIZING (above), so we stay
+        # receptive to their first message the whole time we wait for them;
+        # a genuine no-show still fails honestly at the first real turn call.
+        if opponent_url is None:
+            return
+        with contextlib.suppress(PeerUnavailableError):
+            await wait_for_health(opponent_url, attempts=100, delay_seconds=0.3)
 
     def abort(self, reason: str) -> SubGameRunResult:
         """Force this sub-game to a legal TECHNICAL_LOSS exit from wherever

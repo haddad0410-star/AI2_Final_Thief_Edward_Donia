@@ -15,6 +15,7 @@ it drives are also covered by tests against in-process fakes.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from thief_peer.domain.captures import SubGameResult
 from thief_peer.domain.roles import Role
 from thief_peer.domain.state_machine import PeerStateMachine
 from thief_peer.infrastructure.game_tools import build_game_server
+from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_health
 from thief_peer.infrastructure.server_lifecycle import ManagedServer
 from thief_peer.services.game_ids import derive_game_id, derive_game_uid
 from thief_peer.services.gateway import HttpOpponentGateway
@@ -30,6 +32,13 @@ from thief_peer.services.series_runtime import run_series
 from thief_peer.services.subgame_deps import SubGameDeps, make_deps
 from thief_peer.services.subgame_runtime import SubGameRuntime
 from thief_peer.shared.config_loader import load_private_config, load_shared_config, sha256_hex
+
+
+async def _await_opponent_ready(opponent_url: str) -> None:
+    # Covers ordinary two-terminal startup skew; a genuine no-show still
+    # fails honestly at the first real gameplay call below, unchanged.
+    with contextlib.suppress(PeerUnavailableError):
+        await wait_for_health(opponent_url, attempts=100, delay_seconds=0.3)
 
 
 def _load(config_dir: Path):
@@ -56,6 +65,7 @@ async def run_subgame_headless(config_dir: Path, opponent_url: str) -> dict:
     shared, private, config_sha, game_id, game_uid = _load(config_dir)
     machine = PeerStateMachine()
     server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
+    await _await_opponent_ready(opponent_url)
     gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
     deps = make_deps(
         shared,
@@ -67,7 +77,7 @@ async def run_subgame_headless(config_dir: Path, opponent_url: str) -> dict:
         strategy_weights=private.strategy.weights,
     )
     try:
-        result = await SubGameRuntime(deps, machine=machine).run()
+        result = await SubGameRuntime(deps, machine=machine).run(opponent_url=opponent_url)
     finally:
         await server.stop()
     return {
@@ -101,6 +111,7 @@ async def run_series_headless(
         print("SMOKE TEST ONLY: running a single sub-game, not the full 6-game series.")
     machine = PeerStateMachine()
     server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
+    await _await_opponent_ready(opponent_url)
 
     def deps_factory(index: int) -> SubGameDeps:
         gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
@@ -115,7 +126,9 @@ async def run_series_headless(
         )
 
     try:
-        series = await run_series(deps_factory, num_games=num_games, machine=machine)
+        series = await run_series(
+            deps_factory, num_games=num_games, machine=machine, opponent_url=opponent_url
+        )
     finally:
         await server.stop()
     written_artifacts: list[str] = []
