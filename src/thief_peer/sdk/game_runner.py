@@ -27,6 +27,7 @@ from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_
 from thief_peer.infrastructure.server_lifecycle import ManagedServer
 from thief_peer.services.game_ids import derive_game_id, derive_game_uid
 from thief_peer.services.gateway import HttpOpponentGateway
+from thief_peer.services.result_agreement import finalize_series_agreement
 from thief_peer.services.series_artifacts import write_series_artifacts
 from thief_peer.services.series_runtime import run_series
 from thief_peer.services.subgame_deps import SubGameDeps, make_deps
@@ -129,6 +130,14 @@ async def run_series_headless(
         series = await run_series(
             deps_factory, num_games=num_games, machine=machine, opponent_url=opponent_url
         )
+        series = await finalize_series_agreement(
+            series,
+            opponent_url=opponent_url,
+            inbox=router.audit_inbox,
+            game_uid=game_uid,
+            config_sha256=config_sha,
+            role=Role.THIEF,
+        )
     finally:
         await server.stop()
     written_artifacts: list[str] = []
@@ -144,6 +153,7 @@ async def run_series_headless(
         "sub_games_played": len(series.sub_games),
         "police_total": series.police_total,
         "thief_total": series.thief_total,
+        "agreement_status": series.agreement_status,
         "terminated_reason": series.terminated_reason,
         "final_state": series.final_state.value,
         "artifacts_written": written_artifacts,

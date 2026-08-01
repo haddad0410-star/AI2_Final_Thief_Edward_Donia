@@ -160,7 +160,19 @@ def verify_scores(result: dict, scoring: Scoring) -> list[str]:
             findings.append(f"sub-game {entry['sub_game_number']}: score {declared} != {expected}")
         police_sum += entry["police_score"]
         thief_sum += entry["thief_score"]
+    # This is THIS side's own internal self-consistency check (post-Batch-4B
+    # fix). Previously gated on `result.get("agreed")`, which was masked as
+    # always-true by the "agreed=True merely because completed" bug this
+    # batch fixes -- gating tamper detection on that same buggy flag would
+    # have silently stopped catching a tampered total the moment the flag
+    # became honest. A genuinely disputed series legitimately reports
+    # zeroed totals (never the real sum) by design; every other status
+    # (agreed, or an unconfirmed but still internally-honest
+    # unverified_self_play) must still match the real per-sub-game sum.
     declared_totals = (result["police_total"], result["thief_total"])
-    if result.get("agreed") and (police_sum, thief_sum) != declared_totals:
+    if result.get("agreement_status") == "disputed_zeroed":
+        if declared_totals != (0, 0):
+            findings.append("disputed_zeroed result must report zeroed totals")
+    elif (police_sum, thief_sum) != declared_totals:
         findings.append("declared totals do not match the sum of sub-game scores")
     return findings

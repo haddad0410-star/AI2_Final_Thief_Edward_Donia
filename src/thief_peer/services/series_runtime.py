@@ -41,7 +41,13 @@ class SeriesSubGameRecord:
 
 @dataclass(frozen=True, slots=True)
 class SeriesResult:
-    """The whole-series outcome: per-sub-game records + aggregated totals."""
+    """The whole-series outcome: per-sub-game records + aggregated totals.
+
+    ``agreed``/``agreement_status`` default to the honest, un-exchanged
+    state (``unverified_self_play``) -- only a real bilateral exchange
+    (``services/result_agreement.py``, called from ``sdk/game_runner.py``)
+    may promote this to ``agreed`` or demote it to ``disputed_zeroed``.
+    """
 
     sub_games: tuple[SeriesSubGameRecord, ...]
     police_total: int
@@ -49,6 +55,8 @@ class SeriesResult:
     terminated_reason: str
     final_state: PeerState
     run_results: tuple[SubGameRunResult, ...] = field(default_factory=tuple)
+    agreed: bool = False
+    agreement_status: str = "unverified_self_play"
 
 
 async def run_series(

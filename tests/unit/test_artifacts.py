@@ -52,12 +52,16 @@ def _payload(step: int) -> SealedTurnPayload:
     )
 
 
-def _series() -> SeriesResult:
+def _series(
+    *, agreed: bool = False, agreement_status: str = "unverified_self_play"
+) -> SeriesResult:
     records = (
         SeriesSubGameRecord(1, SubGameResult.CAPTURE, 20, 5, 3, True),
         SeriesSubGameRecord(2, SubGameResult.SURVIVAL, 5, 10, 35, True),
     )
-    return SeriesResult(records, 25, 15, "completed", None)
+    return SeriesResult(
+        records, 25, 15, "completed", None, agreed=agreed, agreement_status=agreement_status
+    )
 
 
 def test_filenames_derived_from_game_id() -> None:
@@ -87,13 +91,28 @@ def test_log_artifact_round_trip(tmp_path) -> None:
 
 
 def test_result_artifact_round_trip(tmp_path) -> None:
-    art = build_result_artifact(UID, GID, "deadbeef", GID, SHA, _series())
+    # A completed series only reports agreed=True once a REAL bilateral
+    # exchange actually confirmed it (services/result_agreement.py) -- never
+    # merely because this process finished; simulate that real outcome here.
+    art = build_result_artifact(
+        UID, GID, "deadbeef", GID, SHA, _series(agreed=True, agreement_status="agreed")
+    )
     path = save_artifact(art, tmp_path / result_filename(GID))
     reloaded = ResultArtifact.from_dict(load_json(path))
     assert reloaded.police_total == 25
     assert reloaded.sub_games[0]["winner"] == "police"
     assert reloaded.sub_games[1]["winner"] == "thief"
     assert reloaded.agreed is True
+
+
+def test_result_artifact_not_agreed_without_real_exchange(tmp_path) -> None:
+    """A completed series that never went through the real bilateral
+    exchange must NOT claim agreed=True -- the exact Post-Batch-4B fix."""
+    art = build_result_artifact(UID, GID, "deadbeef", GID, SHA, _series())
+    path = save_artifact(art, tmp_path / result_filename(GID))
+    reloaded = ResultArtifact.from_dict(load_json(path))
+    assert reloaded.agreed is False
+    assert reloaded.agreement_status == "unverified_self_play"
 
 
 def test_consistent_game_uid_across_four(tmp_path) -> None:

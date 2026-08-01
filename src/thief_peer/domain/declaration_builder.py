@@ -18,17 +18,23 @@ from thief_peer.shared.private_config import PrivateGameConfig
 
 
 def git_commit_hash(repo_root: Path) -> str:
-    """The exact current commit of THIS repo via ``git rev-parse HEAD``.
-
-    Never a fabricated hash; returns "unknown" if git is unavailable."""
+    """The exact commit this code was built from: a real ``git rev-parse
+    HEAD`` when ``.git`` exists, else the packaged ``BUILD_COMMIT`` file (a
+    clean-extracted review ZIP deliberately excludes ``.git``) -- never a
+    fabricated hash, never silently lost."""
     try:
         out = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
             capture_output=True, text=True, timeout=5, check=False,
         )  # fmt: skip
-        return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else "unknown"
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
     except (OSError, subprocess.SubprocessError):
-        return "unknown"
+        pass
+    build_commit = repo_root / "BUILD_COMMIT"
+    if build_commit.exists():
+        return build_commit.read_text(encoding="utf-8").strip()
+    return "unknown"
 
 
 def code_version(repo_root: Path) -> str:

@@ -22,6 +22,11 @@ from thief_peer.protocol.turn_message import structural_reason
 
 logger = logging.getLogger("thief_peer.turn_router")
 _DEAD_STATES = frozenset({PeerState.ERROR, PeerState.SERIES_COMPLETE, PeerState.QUIT})
+#: A result_agreement audit submission is expected to arrive AFTER this
+#: peer's own series has reached SERIES_COMPLETE (the whole point is to
+#: exchange final totals once each side is done) -- so it alone is accepted
+#: in that one otherwise-dead state; ERROR/QUIT still reject it.
+_DEAD_STATES_FOR_AUDIT = frozenset({PeerState.ERROR, PeerState.QUIT})
 
 
 def _reject(reason: str, code: str) -> dict:
@@ -64,7 +69,9 @@ class TurnRouter:
             )
         )
 
-    def _binding_reason(self, envelope: dict, message: dict) -> tuple[str, str] | None:
+    def _binding_reason(
+        self, envelope: dict, message: dict, *, dead_states: frozenset = _DEAD_STATES
+    ) -> tuple[str, str] | None:
         if envelope.get("sender") != self.expected_sender.value:
             return f"sender {envelope.get('sender')!r} != expected", "WRONG_ROLE"
         if envelope.get("game_uid") != self.expected_game_uid:
@@ -72,7 +79,7 @@ class TurnRouter:
         cfg = message.get("config_sha256")
         if cfg is not None and cfg != self.expected_config_sha256:
             return "config_sha256 mismatch", "CONFIG_MISMATCH"
-        if self.machine is not None and self.machine.state in _DEAD_STATES:
+        if self.machine is not None and self.machine.state in dead_states:
             return f"peer is in terminal state {self.machine.state}", "LIFECYCLE"
         return None
 
@@ -124,14 +131,21 @@ class TurnRouter:
     def _handle_audit(self, payload: dict) -> dict:
         if not isinstance(payload, dict) or not isinstance(payload.get("envelope"), dict):
             return _reject("missing envelope", "MALFORMED")
-        if payload.get("message_type") not in ("audit", "audit_ack", "final_result"):
+        mtype = payload.get("message_type")
+        if mtype not in ("audit", "audit_ack", "final_result", "result_agreement"):
             return _reject("unknown audit message_type", "MALFORMED")
-        binding = self._binding_reason(payload["envelope"], payload)
+        # result_agreement is expected to arrive once THIS peer's own series
+        # has already reached SERIES_COMPLETE -- every other audit type
+        # keeps the stricter, original dead-state check.
+        dead_states = _DEAD_STATES_FOR_AUDIT if mtype == "result_agreement" else _DEAD_STATES
+        binding = self._binding_reason(payload["envelope"], payload, dead_states=dead_states)
         if binding:
             return _reject(binding[0], binding[1])
-        key = f"audit:{payload['envelope'].get('sub_game_number')}:{payload['message_type']}"
+        key = f"audit:{payload['envelope'].get('sub_game_number')}:{mtype}"
         if self.audit_inbox.is_idempotent_replay(key, payload):
             return {"ok": True, "idempotent": True}
+        if self.audit_inbox.is_duplicate_conflict(key, payload):
+            return _reject("conflicting duplicate for this logical key", "CONFLICTING_DUPLICATE")
         try:
             self.audit_inbox.enqueue(key, payload, payload["envelope"].get("correlation_id", ""))
         except InboxFullError as exc:

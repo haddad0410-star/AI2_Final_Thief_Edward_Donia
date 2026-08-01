@@ -160,14 +160,25 @@ def test_wrong_game_uid_survives_round_trip_for_caller_comparison() -> None:
 
 
 def test_commit_hash_matches_real_git() -> None:
-    actual = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    assert git_commit_hash(REPO_ROOT) == actual
-    assert _decl().git_commit == actual
+    """When ``.git`` exists, must match the real HEAD exactly. When it
+    doesn't (a clean-extracted review ZIP, which deliberately excludes
+    ``.git``), must match the packaged ``BUILD_COMMIT`` file instead --
+    never silently skipped either way."""
+    if (REPO_ROOT / ".git").exists():
+        actual = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        assert git_commit_hash(REPO_ROOT) == actual
+        assert _decl().git_commit == actual
+        return
+    build_commit = REPO_ROOT / "BUILD_COMMIT"
+    assert build_commit.exists(), "no .git and no BUILD_COMMIT -- commit provenance unverifiable"
+    expected = build_commit.read_text(encoding="utf-8").strip()
+    assert git_commit_hash(REPO_ROOT) == expected
+    assert _decl().git_commit == expected
 
 
 def test_missing_hardware_field_is_null_plus_status_not_fabricated() -> None:

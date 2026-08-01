@@ -63,7 +63,12 @@ def build_result_artifact(
         }
         for r in series.sub_games
     ]
-    agreed = series.terminated_reason == "completed"
+    # A completed series carries the REAL bilaterally-exchanged outcome
+    # (series.agreed/agreement_status, set by result_agreement.py -- never
+    # "agreed" merely because this process finished). A series that ended
+    # early on a technical loss never attempted an exchange; its own
+    # terminated_reason is the honest status, as before this fix.
+    completed = series.terminated_reason == "completed"
     return ResultArtifact(
         game_uid=game_uid,
         game_id=game_id,
@@ -73,6 +78,6 @@ def build_result_artifact(
         sub_games=sub_games,
         police_total=series.police_total,
         thief_total=series.thief_total,
-        agreement_status=("completed" if agreed else series.terminated_reason),
-        agreed=agreed,
+        agreement_status=(series.agreement_status if completed else series.terminated_reason),
+        agreed=(series.agreed if completed else False),
     )
