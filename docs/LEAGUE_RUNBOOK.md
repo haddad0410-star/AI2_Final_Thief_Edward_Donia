@@ -1,7 +1,8 @@
 # League Runbook — Thief Peer
 
 **Current readiness: `LOCAL_READY`.** `NETWORK_READY`/`LEAGUE_READY`/
-`SUBMISSION_READY` are not claimed — see `integration_lab/audit/PROGRESS.md`.
+`SUBMISSION_READY` are not claimed — see
+`_post4b_supplementary_evidence/audit/PROGRESS.md`.
 
 ## Binding league requirements (Appendix F Table 18, visually confirmed)
 
@@ -19,16 +20,20 @@
   FastMCP HTTP repeatedly (Batches 1-4A).
 - Both peers' headless replay verifier and graphical replay viewer
   (`peer replay --gui`/headless): real, tested, run against real match
-  evidence — see `integration_lab/evidence/batch4a/`.
+  evidence produced during development in the full project workspace
+  (not included in this single-repo package).
 - Gmail dry-run reporting (`peer report`): real, tested, produces a real
   structured JSON report body from real artifacts; refuses to report on
   unverified/tampered evidence. `--send` exists in code but has never
   been invoked (Gate C).
-- `integration_lab/scripts/package_match_evidence.py`: packages one
-  completed local match's both-sides artifacts into a reviewable bundle,
-  refusing to package anything that doesn't independently verify first.
+- `package_match_evidence.py` (part of the full multi-repo project
+  workspace tooling, not shipped in this single-repo package): packages
+  one completed local match's both-sides artifacts into a reviewable
+  bundle, refusing to package anything that doesn't independently verify
+  first.
 
-## Manual gates (cannot be completed by Claude — see `integration_lab/audit/manual_gates.md`)
+## Manual gates (cannot be completed by Claude — see
+`_post4b_supplementary_evidence/audit/manual_gates.md`)
 
 - **Gate A**: public MCP endpoint + tunnel authentication. Preparation
   only exists so far — see `docs/PUBLIC_NETWORK_SETUP.md`. No tunnel
@@ -41,20 +46,20 @@
 
 ## Pre-match checklist (for when Gates A/B/C are eventually approved)
 
-- [ ] Shared `game.json` hash-matches the opponent's copy
-      (`integration_lab/scripts/verify_shared_config.py`).
-- [ ] `integration_lab/scripts/check_public_endpoint.py <url>` and
-      `check_peer_auth.py` pass.
+- [ ] Shared `game.json` hash-matches the opponent's copy (checked via
+      `verify_shared_config.py`, part of the full multi-repo project
+      workspace tooling, not shipped in this single-repo package).
+- [ ] The public endpoint and peer-auth checks pass (`check_public_endpoint.py
+      <url>` and `check_peer_auth.py`, same full-workspace tooling as above).
 - [ ] Both peers' health checks pass over the real public endpoint (only
       after Gate A is approved and activated — not yet).
 - [ ] Step-0 hardware declaration exchanged and signed.
 - [ ] All 6 sub-games run to completion (capture, survival, or technical loss).
-- [ ] Mutual audit reports no tampering
-      (`integration_lab/scripts/package_match_evidence.py` refuses
-      otherwise).
+- [ ] Mutual audit reports no tampering (`package_match_evidence.py`
+      refuses otherwise — same full-workspace tooling as above).
 - [ ] `result_<game_id>.json` produced and agreed by both sides.
-- [ ] `integration_lab/scripts/check_port_release.py` shows no orphans
-      after the match.
+- [ ] `check_port_release.py` (same full-workspace tooling as above) shows
+      no orphans after the match.
 - [ ] Gmail report sent (only after your explicit approval each time —
       `peer report --send`).
 

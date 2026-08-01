@@ -1,6 +1,6 @@
 # Strategy — Thief Peer (role-local summary)
 
-**Canonical source:** `integration_lab/audit/strategy_proposals.md` — read that first
+**Canonical source:** `_post4b_supplementary_evidence/audit/strategy_proposals.md` — read that first
 for the full design, invariants, complexity limits, and evaluation metrics.
 
 This role ships two brains, both implemented (Implementation Batch 3):
@@ -11,10 +11,11 @@ This role ships two brains, both implemented (Implementation Batch 3):
 2. **`EntropyEscapeThiefBrain`** (`strategy/entropy_escape_thief_brain.py`) — original
    advanced strategy. Batch 3 found no demonstrated survival-rate improvement
    (both baseline and advanced reached 100% survival), root-caused to a real
-   observation-pipeline defect (see
-   `integration_lab/evidence/batch3/strategy_research/limitations.md`) — since
-   repaired in **Implementation Batch 3.5**
-   (`integration_lab/evidence/batch3_5/pipeline_root_cause.md`), which also
+   observation-pipeline defect (full write-up produced during development
+   in the full project workspace; not included in this single-repo
+   package) — since repaired in **Implementation Batch 3.5** (likewise
+   documented during development, not included in this single-repo
+   package), which also
    found and fixed a second real defect: Thief's honest capture-claim answer
    was never actually delivered back to Police over the wire (`claim_response`
    was always `None`), meaning capture could never have been confirmed in
@@ -22,9 +23,9 @@ This role ships two brains, both implemented (Implementation Batch 3):
    re-evaluation now shows **0% survival for both baseline and advanced
    Thief, against either Police strategy** (a new ceiling tie at the losing
    end) — `EntropyEscapeThiefBrain` shows no demonstrated improvement over
-   baseline in this configuration. Full analysis:
-   `integration_lab/evidence/batch3_5/strategy_research/acceptance_criteria_evaluation.md`.
-   Reported honestly, not hidden. This is a genuinely more sophisticated,
+   baseline in this configuration. Full analysis was produced during
+   development in the full project workspace; not included in this
+   single-repo package. Reported honestly, not hidden. This is a genuinely more sophisticated,
    tested implementation, but no survival superiority claim is made.
    **Implementation Batch 3.6** ran a dedicated fairness/correctness audit
    on top of this result: an 800-game multi-scale robustness check (7x7
@@ -35,7 +36,8 @@ This role ships two brains, both implemented (Implementation Batch 3):
    `EntropyEscapeThiefBrain` and `BaselineThiefBrain` genuinely choose
    different actions from identical inputs. Final classification: **C**
    (genuine ceiling) **with D** (real behavioral differences) **as a
-   corollary** — see `integration_lab/evidence/batch3_6/conclusion.md`.
+   corollary** (full write-up produced during development in the full
+   project workspace; not included in this single-repo package).
 
 ### `EntropyEscapeThiefBrain` design
 

@@ -52,7 +52,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - 18 real, human-captured screenshots (9 per repo) added under
   `screenshots/`; both `screenshots/README.md` files corrected where they
   previously pointed at commands that couldn't produce the described
-  capture. Full index: `integration_lab/evidence/batch4b/MANUAL_HANDOFF.md`.
+  capture. Full index: `_post4b_supplementary_evidence/batch4b/MANUAL_HANDOFF.md`.
 - 458 tests, 91.89% coverage, 0 Ruff violations, all files <=150 meaningful
   lines.
 
@@ -76,7 +76,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   fully bilaterally verified.
 - **Gmail report bilateral gate**: `report --opponent-artifacts-dir <dir>`
   refuses to build a report unless full bilateral verification passes.
-- Evidence: `integration_lab/evidence/batch4b/` — schema audit, 10
+- Evidence: `_post4b_supplementary_evidence/batch4b/` — schema audit, 10
   byte-identical cross-repo test vectors, a 21-category bilateral tamper
   matrix (all detected, both directions), a real six-sub-game two-process
   FastMCP series with `FULL_BILATERAL_VERIFICATION=true` both sides, and
@@ -129,7 +129,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   gating instruction, run once for the whole workspace): three
   consecutive real six-sub-game HTTP series plus one bounded
   injected-delay scenario all passed cleanly.
-- Workspace scripts (`integration_lab/scripts/`): `check_public_endpoint.py`,
+- Workspace scripts (part of the full multi-repo project workspace
+  tooling, not shipped in this single-repo package): `check_public_endpoint.py`,
   `check_peer_auth.py`, `check_port_release.py`, `package_match_evidence.py`
   — all preparation/verification only, no network calls, no packaging of
   unverified evidence.
@@ -148,7 +149,7 @@ independent fairness check before being trusted).
   proof that a truthful capture claim delivered on the exact same turn
   survival would otherwise trigger still resolves as `CAPTURE`.
 - Corrected a documentation-only inaccuracy in
-  `integration_lab/audit/protocol_contract.md` §3.2: the `scent_grid`
+  `_post4b_supplementary_evidence/audit/protocol_contract.md` §3.2: the `scent_grid`
   field name was a project paraphrase of the book's prose, not a literal
   book-mandated identifier (confirmed via full-text PDF search) — the
   implemented field/semantics are unchanged.
@@ -162,7 +163,8 @@ independent fairness check before being trusted).
   `entropy_escape_utility.reachable_area` directly), non-ceiling secondary
   metrics, an 800-game multi-scale `RESEARCH_ONLY` robustness check, 3 new
   research/production-equivalence tests, and a 4-series real HTTP
-  validation run. See `integration_lab/evidence/batch3_6/`.
+  validation run — recorded during development in the full project
+  workspace; not included in this single-repo package.
 
 ### Fixed — Implementation Batch 3.5 (observation-pipeline repair)
 
@@ -200,12 +202,14 @@ independent fairness check before being trusted).
   (entropy-delta), never derived from the sealed `intent` field.
 - New tests covering scent/hint transport, belief order, capture-response
   delay, and strategy-pipeline integration — 325 -> 352 tests, coverage
-  94.18% -> 93.87%; see `integration_lab/evidence/batch3_5/quality/`.
+  94.18% -> 93.87% (raw evidence produced during development in the full
+  project workspace; not included in this single-repo package).
 - Held-out (400 games) and real-HTTP (18 sub-games, 3 series) results:
   Thief survival rate 100% -> 0% in every matchup (capture now reliably
   reachable; `EntropyEscapeThiefBrain` shows no demonstrated improvement
-  over baseline in this configuration, honestly reported). Full analysis:
-  `integration_lab/evidence/batch3_5/`.
+  over baseline in this configuration, honestly reported). Full analysis
+  was produced during development in the full project workspace; not
+  included in this single-repo package.
 
 ### Added — Implementation Batch 3
 
@@ -237,17 +241,18 @@ independent fairness check before being trusted).
   improvement** over `BaselineThiefBrain` in the current experimental
   configuration (both already achieve 100% survival, including against
   the advanced police opponent) — documented as ceiling-tied/inconclusive
-  in `integration_lab/evidence/batch3/strategy_research/limitations.md`,
-  not hidden.
-- `integration_lab/strategy_research/` (research-only local simulator,
-  leakage tests, experiment runner, statistics, figures) and
-  `integration_lab/run_advanced_strategy_series.py` (real HTTP validation
-  launcher) — see `integration_lab/evidence/batch3/`.
+  in the analysis produced during development in the full project
+  workspace (not included in this single-repo package), not hidden.
+- `strategy_research/` (research-only local simulator, leakage tests,
+  experiment runner, statistics, figures) and
+  `run_advanced_strategy_series.py` (real HTTP validation launcher) —
+  both part of the full multi-repo project workspace, not shipped in
+  this single-repo package; evidence likewise produced there.
 
 ### Changed — Session recovery step C
 
 - Declaration schema frozen as canonical, versioned `declaration/2`
-  (resolves `integration_lab/audit/risk_register.md` risk #14).
+  (resolves `_post4b_supplementary_evidence/audit/risk_register.md` risk #14).
   `domain/declaration.py` rewritten and split (150-line cap) into
   `declaration.py` (dataclass/to_dict/validate), `declaration_parsing.py`
   (`parse_declaration`, strict allow-list, alias normalization),
@@ -263,12 +268,12 @@ independent fairness check before being trusted).
   published at `docs/schemas/declaration.schema.json`, byte-identical
   (SHA-256 `a995d657e81ed920f87f3ef39c3281550d346f38c18468cf7fdee79cd42a97bd`)
   to the independently-built Police repo's copy; cross-repo fixture
-  equivalence verified by
-  `integration_lab/scripts/compare_declaration_schemas.py`. 22 tests in
-  `tests/unit/test_declaration.py`. 281 -> 292 tests, both Ruff/format
-  clean. See
-  `integration_lab/evidence/session_recovery_step_c/task2_declaration_schema/`
-  and `.../declaration_schema_audit.md`.
+  equivalence verified by `compare_declaration_schemas.py` (part of the
+  full multi-repo project workspace tooling, not shipped in this
+  single-repo package). 22 tests in `tests/unit/test_declaration.py`.
+  281 -> 292 tests, both Ruff/format clean. Full evidence (task2
+  declaration schema audit) likewise produced during development in the
+  full project workspace; not included in this single-repo package.
 
 ### Added — Session recovery step B
 
@@ -311,8 +316,9 @@ independent fairness check before being trusted).
   `127.0.0.1`/`localhost`/`::1`. `sdk/negotiation_runner.py` updated to the
   new API; the old `IntentionalShutdown`/`run_server_managed`/`stop_server`
   API removed entirely. 11 new regression tests
-  (`tests/integration/test_server_lifecycle.py`). See
-  `integration_lab/evidence/session_recovery_step_b/server_lifecycle/`.
+  (`tests/integration/test_server_lifecycle.py`). Full evidence produced
+  during development in the full project workspace; not included in this
+  single-repo package.
 - `infrastructure/mcp_client.py` — did not catch
   `fastmcp.exceptions.ToolError` (an opponent reachable but rejecting a
   call at the MCP protocol level, e.g. an unknown tool name), letting it
@@ -337,15 +343,17 @@ independent fairness check before being trusted).
   completed, audited game. `run()` now also catches `asyncio.CancelledError`
   to call `abort()` before re-raising, so cancellation is never silently
   swallowed and the state machine always ends in a legal state. See
-  `docs/ARCHITECTURE.md` ("Sub-game exit and audit transition") and
-  `integration_lab/evidence/session_recovery_step_a/thief_state_fix/`.
+  `docs/ARCHITECTURE.md` ("Sub-game exit and audit transition"). Full
+  evidence produced during development in the full project workspace;
+  not included in this single-repo package.
 - `services/outcomes.py` — removed `dataclasses.field`, imported but never
   used (both dataclasses use plain immutable defaults, e.g. `records:
   tuple[...] = ()`, which need no `field(default_factory=...)`). Confirmed
   no other file in the diff needed it either; `ruff check .` is clean.
 - Ran `ruff format .` across both new (previously unformatted) Batch 2
   source/test files and confirmed, by diffing against the pre-session
-  patch in `integration_lab/evidence/session_recovery/thief_partial.patch`,
+  patch (preserved during development in the full project workspace; not
+  included in this single-repo package),
   that the three previously-tracked files it touched
   (`infrastructure/mcp_client.py`, `sdk/negotiation_runner.py`,
   `shared/private_config.py`) came out byte-identical to their state before
@@ -380,5 +388,5 @@ independent fairness check before being trusted).
 ### Not yet implemented
 - Full turn-by-turn game loop, commit-reveal/audit lifecycle, strategy brains, state
   machine/DeadlineTracker/Watchdog, GUI, replay viewer, Gmail reporter, league runner.
-  See `integration_lab/audit/PROGRESS.md` for the current readiness level (still
+  See `_post4b_supplementary_evidence/audit/PROGRESS.md` for the current readiness level (still
   below `LOCAL_READY`).

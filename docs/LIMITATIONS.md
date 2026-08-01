@@ -1,20 +1,25 @@
 # Limitations — Thief Peer
 
-Current, honest state as of this scaffold (Phase 1-2, no application code written):
+Current, honest state (`LOCAL_READY`, real implementation — not an early
+scaffold): a real FastMCP server/client, the full game engine, state
+machine, strategy (baseline + advanced), scent/belief model, cryptographic
+commit-reveal sealing, a live GUI, graphical/headless replay verification,
+and a Gmail dry-run reporter are all implemented and tested, verified
+repeatedly over real two-process FastMCP HTTP. `NETWORK_READY`/
+`LEAGUE_READY`/`SUBMISSION_READY` are **not** claimed. Genuinely still
+open:
 
-- No FastMCP server/client exists — nothing here has run over real HTTP yet.
-- No game engine, state machine, strategy, scent/belief model, cryptography, GUI,
-  replay, or Gmail sender is implemented.
 - `pheromone_min_center_intensity=0.5` (seen in the reference repo's config) is not
   confirmed as a binding Appendix F value — tracked as an open item, not assumed.
-  See `integration_lab/audit/risk_register.md` risk #2.
+  See `_post4b_supplementary_evidence/audit/risk_register.md` risk #2.
 - Repository visibility (public vs. private) and its licensing implications are
-  unresolved pending your decision — see `integration_lab/audit/manual_gates.md`
-  Gate E.
-- No league opponent, public network exposure, or Gmail send has occurred.
+  unresolved pending your decision — see
+  `_post4b_supplementary_evidence/audit/manual_gates.md` Gate E.
+- No league opponent, public network exposure, or Gmail send has occurred
+  (Manual Gates A, B, C, F).
 
-This file will be kept current every phase — never allowed to go stale while claiming
-a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
+This file is kept current every batch — never allowed to go stale while claiming
+a higher readiness level than `_post4b_supplementary_evidence/audit/PROGRESS.md` supports.
 
 ## Current state (Implementation Batch 4A)
 
@@ -63,7 +68,7 @@ a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
   applies to genuinely pre-Batch-4B legacy records (Batch 1-4A evidence,
   preserved unmodified on disk and still self-verifiable under its own
   original schema) — never to a current `commitment/1` record. Full
-  evidence: `integration_lab/evidence/batch4b/` (schema audit, 10
+  evidence: `_post4b_supplementary_evidence/batch4b/` (schema audit, 10
   byte-identical cross-repo test vectors, a 21-category bilateral tamper
   matrix, a real six-sub-game two-process series with
   `FULL_BILATERAL_VERIFICATION=true` both sides, and a bilaterally-gated
@@ -88,7 +93,8 @@ a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
   of the time, and belief entropy barely drops (5.61 -> 5.36 bits) — a
   confident-looking maximum-likelihood signal, not a leak of the true
   cell — meaning the Thief's own position is not being exposed to Police
-  through this channel. `integration_lab/evidence/batch3_6/epistemic_leakage_audit.md`.
+  through this channel (full write-up produced during development in the
+  full project workspace; not included in this single-repo package).
 - **No hint-verdict early-visibility defect found**: the intent
   (truth/lie) verdict is confirmed absent from the live `reveal` payload
   and present/verifiable only at final audit, both by direct code
@@ -112,19 +118,22 @@ a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
   files in place before being replaced with a properly-scoped Batch 3.6
   version; content was verified materially identical. One real HTTP
   series showed a transient sub-game failure (system-load-dependent,
-  reproduced 0 times on a clean rerun); both are disclosed in
-  `integration_lab/evidence/batch3_6/limitations.md` and
-  `.../real_http/transient_flake_note.md`.
+  reproduced 0 times on a clean rerun); both are disclosed in the
+  detailed write-ups produced during development in the full project
+  workspace (`limitations.md` and `real_http/transient_flake_note.md`;
+  not included in this single-repo package).
 - Final classification: **C (genuine game-design ceiling, honestly
   documented) with D (real behavioral differences exist) as a direct
-  corollary** — not A/B/E. See
-  `integration_lab/evidence/batch3_6/conclusion.md`.
-- Full evidence set: `integration_lab/evidence/batch3_6/` (scent-timing
-  contract with book page citations, leakage audit, hint-visibility
-  audit, causal ablation across 9 evidence-source conditions, capture-
-  correctness re-audit, 6 behavioral fixtures, secondary metrics, 800-game
-  robustness results, research/production equivalence, real HTTP series,
-  7 figures).
+  corollary** — not A/B/E (full write-up produced during development in
+  the full project workspace; not included in this single-repo package).
+- Full evidence set (scent-timing contract with book page citations,
+  leakage audit, hint-visibility audit, causal ablation across 9
+  evidence-source conditions, capture-correctness re-audit, 6 behavioral
+  fixtures, secondary metrics, 800-game robustness results,
+  research/production equivalence, real HTTP series) was produced during
+  development in the full project workspace; not included in this
+  single-repo package. The 7 figures are bundled at
+  `_post4b_supplementary_evidence/batch3_6_figures/*.png`.
 - Readiness: `LOCAL_READY` (unchanged — Batch 3.6 is a fairness/
   correctness audit on top of an already-`LOCAL_READY` baseline;
   `NETWORK_READY`/`LEAGUE_READY`/`SUBMISSION_READY` still not claimed).
@@ -152,9 +161,10 @@ a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
   `BaselineThiefBrain` in this held-out configuration (both 0% survival,
   ceiling-tied at the losing end, against both baseline and advanced
   Police) — reported honestly, not hidden.
-- Full analysis: `integration_lab/evidence/batch3_5/` (root cause, audit,
-  before/after traces, capture sanity fixtures, held-out and real-HTTP
-  results, figures).
+- Full analysis (root cause, audit, before/after traces, capture sanity
+  fixtures, held-out and real-HTTP results, figures) was produced during
+  development in the full project workspace; not included in this
+  single-repo package.
 - Readiness: `LOCAL_READY` (unchanged — Batch 3.5 repairs a functional
   defect and re-validates on top of an already-`LOCAL_READY` baseline;
   `NETWORK_READY`/`LEAGUE_READY`/`SUBMISSION_READY` still not claimed).
@@ -171,7 +181,8 @@ a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
   update, so police pursuit rarely converges within the 35-move budget
   regardless of thief strategy quality — a pre-existing system
   characteristic, not a defect in this batch's strategy code. Full
-  analysis: `integration_lab/evidence/batch3/strategy_research/limitations.md`.
+  analysis was produced during development in the full project workspace;
+  not included in this single-repo package.
 - A real, pre-existing bug was found and fixed this batch:
   `services/subgame_deps.py::make_deps` always hardcoded
   `BaselineThiefBrain` regardless of the private config's `thief_class`
@@ -202,13 +213,15 @@ a higher readiness level than `integration_lab/audit/PROGRESS.md` supports.
   (96/96 checks passed) — both previously unimplemented/unrun, now done.
   Six real cross-repo protocol/wiring defects were found and fixed only by
   actually running two independent processes against each other — see
-  `CHANGELOG.md` and `integration_lab/audit/risk_register.md` risks #15-#16.
+  `CHANGELOG.md` and
+  `_post4b_supplementary_evidence/audit/risk_register.md` risks #15-#16.
 - **Still not implemented or run**: `EntropyEscapeThiefBrain` (only the
   from-scratch baseline exists), a live GUI, a replay *viewer* (the
   headless verifier exists; a visual viewer does not), Gmail reporting,
   public network exposure/tunnel, and league play.
 - The live cross-process path for `run-subgame`/`run-series` **is now
-  validated** — see `integration_lab/evidence/session_recovery_step_c/`.
+  validated** (raw evidence produced during development in the full
+  project workspace; not included in this single-repo package).
 - The declaration schema divergence between this repo and the Police repo
   (risk #14) is **resolved** — canonical `declaration/2`, verified
   byte-identical fixtures.
