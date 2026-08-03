@@ -1,20 +1,24 @@
 # Architecture — Thief Peer
 
-Canonical protocol reference: `integration_lab/audit/protocol_contract.md`. This file
-is the role-local summary; if the two ever disagree, the integration_lab audit copy
-wins until reconciled.
+Canonical protocol reference: `_post4b_supplementary_evidence/audit/protocol_contract.md`.
+This file is the role-local summary; if the two ever disagree, the audit copy wins
+until reconciled.
 
 ## Component responsibilities (`src/thief_peer/`)
 
-| Package | Responsibility | Batch 1 status |
+All packages below are implemented and covered by the real, passing test suite
+(`LOCAL_READY`); the table records what each package contains, not an
+in-progress/not-started distinction.
+
+| Package | Responsibility | Status |
 |---|---|---|
-| `sdk/` | Single public entry point; no business logic itself, delegates to the layers below | `negotiation_runner.py` implemented (minimal vertical slice orchestration only) |
-| `domain/` | Board, movement/barrier rules, scoring, scent/pheromone model, belief fusion, own-state tracking — pure game logic, no I/O | Implemented: `roles`, `positions`, `actions`, `hints`, `captures`, `board`, `rules`, `scoring`, `scent`, `belief_model`, `belief_updates`, `observations`, `state` |
-| `protocol/` | Wire message dataclasses (turn/control/audit), canonical JSON serialization | Schemas implemented (`envelope`, `messages_handshake`, `messages_evidence`, `messages_turn`, `messages_capture`, `messages_control`); full lifecycle wiring is a later batch |
-| `strategy/` | `BaselineThiefBrain`, `EntropyEscapeThiefBrain`, shared `BrainBase`/`Decision` contract | Not started — design only, see `integration_lab/audit/strategy_proposals.md` |
-| `infrastructure/` | FastMCP server/client, Gmail sender, rate limiter/Gatekeeper, transport-level concerns | `mcp_server.py`/`mcp_client.py` implemented (health/negotiate/config-hash-compare only); Gmail sender not started |
-| `services/` | Cross-cutting orchestration (e.g. the peer runtime/state machine, deadline tracker, watchdog) built on top of `domain` + `protocol` + `infrastructure` | Not started |
-| `gui/` | Live view + replay viewer; never displays the opponent's true position | **Implemented (Batch 4A)**: `view_model.py`/`event_queue.py`/`background_runner.py` (pure/headless), `tk_app.py`/`tk_board.py`/`tk_panels.py` (live Tkinter rendering), `replay_view_model.py`/`replay_steps.py`/`replay_playback.py` (pure/headless), `tk_replay_app.py`/`tk_replay_board.py`/`tk_replay_panels.py` (replay Tkinter rendering) |
+| `sdk/` | Single public entry point; no business logic itself, delegates to the layers below | Implemented: `negotiation_runner.py` plus the full `game_runner.py` facade wiring config loading, this peer's server, the HTTP opponent gateway, and the sub-game/series runtimes |
+| `domain/` | Board, movement/barrier rules, scoring, scent/pheromone model, belief fusion, own-state tracking, state machine, deadline tracker, watchdog — pure game logic, no I/O | Implemented: `roles`, `positions`, `actions`, `hints`, `captures`, `board`, `rules`, `scoring`, `scent`, `belief_model`, `belief_updates`, `observations`, `state`, `state_machine/`, `deadline.py`, `watchdog.py` |
+| `protocol/` | Wire message dataclasses (turn/control/audit), canonical JSON serialization | Implemented: schemas (`envelope`, `messages_handshake`, `messages_evidence`, `messages_turn`, `messages_capture`, `messages_control`) with full lifecycle wiring through `infrastructure/game_tools.py` and `infrastructure/turn_router.py` |
+| `strategy/` | `BaselineThiefBrain`, `EntropyEscapeThiefBrain`, shared `BrainBase`/`Decision` contract | Implemented, tested, and used in real gameplay — `config/thief/game.toml` defaults to `BaselineThiefBrain`; `config/thief_advanced/game.toml` wires `EntropyEscapeThiefBrain`. Neither is claimed superior on survival rate; see `docs/STRATEGY.md` and `_post4b_supplementary_evidence/audit/strategy_proposals.md` |
+| `infrastructure/` | FastMCP server/client, Gmail sender, rate limiter/Gatekeeper, transport-level concerns | Implemented: `mcp_server.py`/`mcp_client.py` expose the full tool surface (`negotiate`, `receive_turn`/`receive_move` alias, `submit_audit`, `receive_control`); Gmail sender implemented, dry-run by default, real send gated behind Manual Gate C and never invoked |
+| `services/` | Cross-cutting orchestration (peer runtime/state machine glue, sub-game/series runtime, artifact builders, replay verifier) built on top of `domain` + `protocol` + `infrastructure` | Implemented: `series_runtime.py`, `artifact_models.py`/`artifact_builders.py`/`artifacts.py`/`series_artifacts.py`, `replay_verifier.py`/`replay_loader.py`/`replay_checks.py` |
+| `gui/` | Live view + replay viewer; never displays the opponent's true position | Implemented (Batch 4A): `view_model.py`/`event_queue.py`/`background_runner.py` (pure/headless), `tk_app.py`/`tk_board.py`/`tk_panels.py` (live Tkinter rendering), `replay_view_model.py`/`replay_steps.py`/`replay_playback.py` (pure/headless), `tk_replay_app.py`/`tk_replay_board.py`/`tk_replay_panels.py` (replay Tkinter rendering) |
 | `shared/` | Config loading/validation, logging setup, version info — no game logic | Implemented: `errors`, `config_sections`, `config_validation`, `config_models`, `private_config`, `rate_limits_model`, `config_loader`, `canonical_json` |
 
 ## Independence guarantees
@@ -24,9 +28,10 @@ wins until reconciled.
 - No in-memory singleton shared across processes (impossible anyway — separate OS
   processes — but also never designed as if it were possible).
 
-These are enforced by `integration_lab/verify_isolation.py`, run against both real
-repositories with zero violations as of Batch 1 (`integration_lab/evidence/
-verify_isolation_output.json`).
+These are enforced by `verify_isolation.py`, a workspace-only script run against both
+real repositories during development (not included in this single-repo package);
+the FINAL_LOCAL_AUDIT re-confirms `"isolated": true`, zero violations, both repos
+(`_post4b_supplementary_evidence/post4b_finalization/FINAL_LOCAL_AUDIT.md`).
 
 ## State machine
 
@@ -56,10 +61,11 @@ stop:
 `SubGameRuntime.abort(reason)` is the single shared mechanism for the last two
 rows: it forces `ERROR` (if not already there) and finalizes as an explicit
 `TECHNICAL_LOSS`, so an artificially-capped or cancelled sub-game can never be
-reported as a completed, audited game. See `integration_lab/evidence/
-session_recovery_step_a/thief_state_fix/` for the bug this replaced (a bare
-`state_machine.state is not ERROR` check let a WAITING state through to an
-illegal `BEGIN_AUDIT`) and the regression tests added.
+reported as a completed, audited game. The bug this replaced (a bare
+`state_machine.state is not ERROR` check that let a WAITING state through to an
+illegal `BEGIN_AUDIT`) and its fix were captured in session-recovery evidence
+produced during development (not included in this single-repo package); the
+regression tests added for it remain in `tests/`.
 
 ## Series runtime, artifacts, replay verifier, CLI (session recovery step B)
 
@@ -79,12 +85,13 @@ series immediately, matching the single-sub-game contract above.
 `replay_loader.py`/`replay_checks.py` (Phase 12) are independent
 implementations (no import of the Police repository) verified
 schema-compatible with Police's equivalents via serialized fixture
-comparison — see `integration_lab/evidence/session_recovery_step_b/
-feature_parity.md`. `sdk/game_runner.py` wires config loading, this peer's
+comparison (feature-parity evidence produced during development, not
+included in this single-repo package). `sdk/game_runner.py` wires config loading, this peer's
 server, the HTTP opponent gateway, and these runtimes into
 `run_subgame_headless`/`run_series_headless`, called from `__main__.py`'s
 `run-subgame`/`run-series` (with `--artifacts-dir`) commands. **The live
-cross-process path is now validated for real** (session recovery step C: a
-real one-sub-game and a real six-sub-game two-process series against the
-Police repo, both over real FastMCP HTTP) — see
-`integration_lab/evidence/session_recovery_step_c/` and `docs/LIMITATIONS.md`.
+cross-process path is validated for real and repeatedly re-run since** (a
+real one-sub-game and real six-sub-game two-process series against the
+Police repo, both over real FastMCP HTTP, most recently including the real
+bilateral result-agreement exchange) — see
+`_post4b_supplementary_evidence/batch4b/bilateral_series/` and `docs/LIMITATIONS.md`.

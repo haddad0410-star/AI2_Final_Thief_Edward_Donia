@@ -2,8 +2,13 @@
 
 ## Status
 
-Accepted (assessment only — not implemented this batch, since `receive_turn` itself
-is not implemented yet either; see `docs/PROTOCOL.md`).
+Accepted, and since implemented per the Decision below. At the time this assessment
+was written, `receive_turn` itself was not implemented yet either (see
+`docs/PROTOCOL.md`); both are implemented now
+(`src/thief_peer/infrastructure/game_tools.py`), with `receive_move` registered as
+the thin adapter this ADR called for — it forwards to the exact same handler
+(`TurnRouter.handle_turn`) as `receive_turn`, so a caller omitting required fields is
+rejected by the identical validation path, never silently guessed at.
 
 ## Context
 
@@ -31,7 +36,7 @@ exactly the "duplicate/ambiguous business logic" this batch was told to avoid.
 
 ## Decision
 
-If/when an alias is implemented (a later batch, once `receive_turn` itself exists):
+Once an alias was implemented (once `receive_turn` itself existed):
 
 - `receive_move` MUST be a thin adapter that either (a) rejects any caller that omits
   fields `receive_turn` requires, with a clear `ProtocolErrorMessage`, or (b) is only
@@ -39,9 +44,12 @@ If/when an alias is implemented (a later batch, once `receive_turn` itself exist
   is known to only implement the book's minimal example — never a silent default.
 - No separate validation, state machine, or commit-reveal logic will ever be written
   for `receive_move`; it only ever calls into `receive_turn`'s implementation.
-- This batch does not implement either tool's actual handler (see Stop Condition —
-  full game loop is a later batch); this ADR exists so the decision is made
-  deliberately once that time comes, rather than improvised.
+
+As implemented, `receive_move` takes option (a): it calls the exact same
+`TurnRouter.handle_turn` path as `receive_turn`, so any caller omitting a required
+field is rejected by that shared validation, never guessed at or partially filled in.
+No real opponent has been observed to need the narrower book-example shape (Manual
+Gate B, real opponent identity, remains open).
 
 ## Consequences
 

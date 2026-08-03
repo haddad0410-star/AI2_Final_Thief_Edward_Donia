@@ -4,7 +4,7 @@
 # same directory -- never here. This file must contain nothing relevant to the
 # opponent beyond the one URL needed to reach them.
 #
-# DRAFT -- Phase 1-2 scaffold. No code reads this file yet.
+# Read by thief_peer.shared.config_loader at startup.
 
 version = "0.1.0"
 
@@ -20,9 +20,10 @@ my_port = 8902                                    # MY MCP server port (private 
 opponent_url = "http://127.0.0.1:8901/mcp"        # the ONLY thing I know about the opponent locally; replaced with a real remote URL only after Manual Gate A/B
 turn_timeout_seconds = 180
 
-# [strategy] -- optional: point at YOUR own brain subclass (else the default heuristic runs).
-# Left unset in this scaffold; will point at EntropyEscapeThiefBrain once implemented.
-# thief_class = "thief_peer.strategy:EntropyEscapeThiefBrain"
+# [strategy] -- optional: point at YOUR own brain subclass (else BaselineThiefBrain
+# runs). Left unset here by default; the advanced EntropyEscapeThiefBrain (implemented,
+# see src/thief_peer/strategy/) is used instead in config/thief_advanced/game.toml.
+# thief_class = "thief_peer.strategy.entropy_escape_thief_brain:EntropyEscapeThiefBrain"
 
 # [trash_talk] -- HOW the banter/hint is produced. The MOVE is always pure Python.
 [trash_talk]

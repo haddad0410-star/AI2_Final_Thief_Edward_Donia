@@ -5,7 +5,7 @@
 Define what this repository must deliver for the final project: an independent
 Thief peer that plays Distributed Cops-and-Robbers over FastMCP against
 another group's peer, per the binding rules in
-`integration_lab/audit/binding_parameters.json`.
+`_post4b_supplementary_evidence/audit/binding_parameters.json`.
 
 ## Scope
 
@@ -24,16 +24,20 @@ See `PRD_fastmcp_peer.md`, `PRD_game_rules.md`, `PRD_scent_belief.md`,
 
 ## Measurable acceptance criteria (project-level)
 
-- [ ] Two real, separate FastMCP HTTP processes (this peer + the opponent's) complete
+- [x] Two real, separate FastMCP HTTP processes (this peer + the opponent's) complete
       at least one full sub-game locally (`LOCAL_READY`).
-- [ ] `scripts/verify_shared_config.py`-style byte/hash comparison passes on the shared
+- [x] `verify_shared_config.py`-style byte/hash comparison passes on the shared
       `game.json` between both peers.
-- [ ] `uv run pytest --cov=src --cov-fail-under=85` passes with zero Ruff violations.
-- [ ] Every submitted `.py` file is <=150 meaningful lines.
-- [ ] Replay viewer reports `VERIFIED`, not `TAMPERED`, on an untampered log.
-- [ ] A tampered log is correctly reported as `TAMPERED` (security test).
-- [ ] `num_games=6` in the shared league config; `num_games=1` exists only in
-      `integration_lab/config_fixtures/game_smoke_1.json`.
+- [x] `uv run pytest --cov=src --cov-fail-under=85` passes with zero Ruff violations.
+- [x] Every submitted `.py` file is <=150 meaningful lines.
+- [x] Replay viewer reports `VERIFIED`, not `TAMPERED`, on an untampered log.
+- [x] A tampered log is correctly reported as `TAMPERED` (security test).
+- [x] `num_games=6` in the shared league config; `num_games=1` exists only in a
+      local development-only fixture (not included in this single-repo package).
 
-None of the above is satisfied yet — this PRD exists before implementation, per Phase 0
-of the master plan. Status tracked in `integration_lab/audit/PROGRESS.md`.
+All of the above are satisfied at `LOCAL_READY`. `NETWORK_READY`/`LEAGUE_READY`/
+`SUBMISSION_READY` are not claimed — those depend on the still-open manual gates
+(public endpoint, real league opponent, Gmail OAuth send, NotebookLM export,
+repository visibility, GitHub push). Status tracked in
+`_post4b_supplementary_evidence/audit/PROGRESS.md` and
+`_post4b_supplementary_evidence/post4b_finalization/FINAL_LOCAL_AUDIT.md`.

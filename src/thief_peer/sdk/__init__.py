@@ -1,4 +1,4 @@
-"""thief_peer.sdk package — not yet implemented (Phase 1-2 scaffold).
+"""thief_peer.sdk package (implemented).
 
-See docs/ARCHITECTURE.md for this package's planned responsibility.
+See docs/ARCHITECTURE.md for this package's responsibility.
 """
