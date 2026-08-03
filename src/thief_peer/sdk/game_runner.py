@@ -1,16 +1,10 @@
-"""SDK orchestration for the headless game CLIs (Batch 2, Phases 9-11).
-
-Wires config loading, this peer's own FastMCP server (Phase 6's full turn
-tool surface), the HTTP opponent gateway, and the sub-game/series runtimes
-into two async entrypoints. Business logic lives here (not in ``__main__``)
-per CLAUDE.md. Independent implementation (no import of the Police
-repository).
-
-The live cross-process path was validated for real in session recovery step C
-(Task 5): two independent OS processes, real HTTP, real commit-reveal, ending
-in a genuine capture/survival/technical-loss outcome -- see
-integration_lab/evidence/session_recovery_step_c/one_subgame/. The runtimes
-it drives are also covered by tests against in-process fakes.
+"""SDK orchestration for the headless game CLIs. Wires config loading, this
+peer's own FastMCP server, the HTTP opponent gateway, the sub-game/series
+runtimes, and the end-of-series bilateral result agreement into two async
+entrypoints. Business logic lives here, not in ``__main__``, per CLAUDE.md.
+Independent implementation (no import of the Police repository). Validated
+for real over two independent OS processes and real HTTP -- see
+docs/PROTOCOL.md and the bundled `_post4b_supplementary_evidence/` evidence.
 """
 
 from __future__ import annotations
@@ -99,13 +93,8 @@ async def run_series_headless(
     *,
     artifacts_dir: Path | None = None,
 ) -> dict:
-    """Run a full (or --smoke single) series against a live opponent server.
-
-    When `artifacts_dir` is given, writes the four standardized JSON
-    artifacts via `series_artifacts.write_series_artifacts` -- reflecting
-    exactly what happened, including a series that ended early on a
-    technical loss.
-    """
+    # `artifacts_dir`, if given, gets the four standardized JSON artifacts
+    # reflecting exactly what happened, including an early technical-loss end.
     shared, private, config_sha, game_id, game_uid = _load(config_dir)
     num_games = 1 if smoke else shared.network_and_league.num_games
     if smoke:
@@ -151,6 +140,7 @@ async def run_series_headless(
         "game_id": game_id,
         "game_uid": game_uid,
         "sub_games_played": len(series.sub_games),
+        "agreed": series.agreed,
         "police_total": series.police_total,
         "thief_total": series.thief_total,
         "agreement_status": series.agreement_status,
@@ -161,12 +151,13 @@ async def run_series_headless(
 
 
 def summary_exit_code(summary: dict) -> int:
-    """0 for a clean finish, 1 for a technical loss / dispute."""
+    """0 = clean, agreed finish; 1 = technical loss / incomplete / disputed."""
     if summary.get("result") == SubGameResult.TECHNICAL_LOSS.value:
         return 1
     if summary.get("terminated_reason", "completed") != "completed":
         return 1
-    return 0
+    disputed = summary.get("agreement_status") in ("disputed_zeroed", "unverified_self_play")
+    return 1 if disputed or summary.get("agreed") is False else 0
 
 
 def print_summary(summary: dict) -> None:
