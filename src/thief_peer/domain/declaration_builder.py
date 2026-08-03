@@ -21,16 +21,21 @@ def git_commit_hash(repo_root: Path) -> str:
     """The exact commit this code was built from: a real ``git rev-parse
     HEAD`` when ``.git`` exists, else the packaged ``BUILD_COMMIT`` file (a
     clean-extracted review ZIP deliberately excludes ``.git``) -- never a
-    fabricated hash, never silently lost."""
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=5, check=False,
-        )  # fmt: skip
-        if out.returncode == 0 and out.stdout.strip():
-            return out.stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        pass
+    fabricated hash, never silently lost. Checks for ``.git`` first rather
+    than always spawning ``git`` and catching its failure -- skipping the
+    doomed-to-fail subprocess (which still walks every parent directory
+    looking for one) avoids a real, measurable blocking-call cost on the
+    hot declaration-building path when ``.git`` is known absent."""
+    if (repo_root / ".git").exists():
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5, check=False,
+            )  # fmt: skip
+            if out.returncode == 0 and out.stdout.strip():
+                return out.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
     build_commit = repo_root / "BUILD_COMMIT"
     if build_commit.exists():
         return build_commit.read_text(encoding="utf-8").strip()
