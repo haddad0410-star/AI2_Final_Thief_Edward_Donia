@@ -49,8 +49,10 @@ class SubGameState:
     #: (Batch 3.5 Task 4/9: the synchronous per-step commit/reveal exchange
     #: structurally cannot answer a same-step claim, since both peers send
     #: their own reveal before receiving the other's; see
-    #: integration_lab/evidence/batch3_5/observation_pipeline_audit.md
-    #: addendum, defect H). ``None`` means no claim evidence arrived yet.
+    #: observation_pipeline_audit.md addendum, defect H -- a
+    #: development-workspace artifact (under the full project workspace's
+    #: integration_lab/evidence/batch3_5/), not included in this standalone
+    #: package. ``None`` means no claim evidence arrived yet.
     pending_claim_response: bool | None = None
 
     @classmethod

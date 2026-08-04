@@ -4,8 +4,10 @@ Active only when the ``THIEF_TRACE_FILE`` environment variable is set. Never
 sent over the wire, never given to the strategy, never affects gameplay --
 purely an append-only JSONL diagnostic log of this peer's OWN turn-local
 values (never the opponent's true position), used to prove or disprove
-observation-pipeline defects. See
-``integration_lab/evidence/batch3_5/observation_pipeline_audit.md``.
+observation-pipeline defects. See ``observation_pipeline_audit.md``, a
+development-workspace artifact (under the full project workspace's
+``integration_lab/evidence/batch3_5/``), not included in this standalone
+package.
 """
 
 from __future__ import annotations

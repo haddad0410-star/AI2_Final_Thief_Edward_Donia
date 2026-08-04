@@ -10,8 +10,8 @@ The book (Appendix B) requires a byte-identical, signed shared config (`game.jso
 
 ## Decision
 
-`config/thief/game.json` holds only mutually-agreed, hashable terms (board, movement, scoring, pheromones, network/league, rate limits) drawn from `integration_lab/audit/binding_parameters.json`. `config/thief/game.toml` holds only this peer's private setup (group identity, local port, opponent URL, strategy class choice, banter provider, Gmail settings) and must never weaken or override a signed `game.json` term.
+`config/thief/game.json` holds only mutually-agreed, hashable terms (board, movement, scoring, pheromones, network/league, rate limits) drawn from `_post4b_supplementary_evidence/audit/binding_parameters.json`. `config/thief/game.toml` holds only this peer's private setup (group identity, local port, opponent URL, strategy class choice, banter provider, Gmail settings) and must never weaken or override a signed `game.json` term.
 
 ## Consequences
 
-`integration_lab/scripts/verify_shared_config.py` must be run before every match to catch any accidental drift between the two peers' `game.json` copies.
+`verify_shared_config.py` must be run before every match to catch any accidental drift between the two peers' `game.json` copies (a development-workspace script, under the full project workspace's `integration_lab/scripts/`, not included in this standalone package).

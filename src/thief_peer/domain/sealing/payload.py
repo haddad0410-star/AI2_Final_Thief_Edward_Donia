@@ -4,14 +4,16 @@ Batch 4B Task 3: the sealed field set is now ``commitment/1`` -- a single,
 role-agnostic canonical shape both this repo and the independently-built
 Police repo adopt for newly-sealed records, resolving the divergence
 documented in
-``integration_lab/evidence/batch4b/commitment_schema_audit.md`` (this
+``_post4b_supplementary_evidence/batch4b/commitment_schema_audit.md`` (this
 repo's ``state`` field was an opaque string digest, `"pos=R,C;visited=N"`,
 that Police's verifier could never parse as a position). Fixed by
 replacing ``state`` with a plain ``position`` tuple -- this repo's
 ``config_sha256`` was already a top-level field (Police's was nested
 inside ``state``; Police adopted this repo's convention). See
-``integration_lab/evidence/batch4b/canonical_commitment_design.md`` for
-the full design rationale.
+``canonical_commitment_design.md`` for the full design rationale, a
+development-workspace artifact (under the full project workspace's
+``integration_lab/evidence/batch4b/``), not included in this standalone
+package.
 
 Legacy note: records sealed under the prior ``sealed-turn/2`` schema
 (Batch 1-4A evidence) are UNCHANGED on disk and remain self-verifiable by

@@ -4,8 +4,10 @@ missing-hardware behaviour, mismatch detection, tampering, and no secrets.
 Canonical schema frozen in session recovery step C (declaration/2,
 docs/schemas/declaration.schema.json, resolving risk #14). Cross-repository
 byte-identical-fixture and schema-SHA-256 comparisons live in
-integration_lab/scripts/compare_declaration_schemas.py, not here (a single
-repo's tests cannot import the sibling repo).
+compare_declaration_schemas.py, not here (a single repo's tests cannot
+import the sibling repo); a development-workspace script under the full
+project workspace's integration_lab/scripts/, not included in this
+standalone package.
 """
 
 from __future__ import annotations

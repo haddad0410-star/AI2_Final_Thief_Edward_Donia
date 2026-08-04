@@ -119,8 +119,10 @@ async def _run_turn(state: SubGameState, deps) -> TurnResult:
     # answer was already computed and pending from LAST turn (the
     # synchronous per-step exchange structurally cannot answer a same-step
     # claim -- both peers send their own reveal before receiving the
-    # other's; see integration_lab/evidence/batch3_5/
-    # observation_pipeline_audit.md addendum, defect H). Having now
+    # other's; see observation_pipeline_audit.md addendum, defect H (a
+    # development-workspace artifact under the full project workspace's
+    # integration_lab/evidence/batch3_5/, not included in this standalone
+    # package). Having now
     # delivered it, this peer's own sub-game ends here -- there is no
     # further legal move for an already-captured thief to make.
     if was_confirming_prior_capture:

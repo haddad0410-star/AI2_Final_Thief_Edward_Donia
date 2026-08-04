@@ -1,6 +1,8 @@
 """Coverage for sdk.negotiation_runner.run_negotiation_smoke, exercised
 directly (not via a real OS subprocess -- that's what
-integration_lab/run_negotiation_smoke.py is for) so pytest can measure it."""
+run_negotiation_smoke.py is for, a development-workspace script under the
+full project workspace's integration_lab/, not included in this standalone
+package) so pytest can measure it."""
 
 from __future__ import annotations
 

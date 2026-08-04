@@ -38,9 +38,11 @@ cross-repo audit (96/96 checks passed); ran 18 bounded failure drills (Phase
 9); ran full quality/security/reproducibility gates (Phase 13). Six real
 cross-repo protocol defects found and fixed only by actually running two
 independent processes — see `CHANGELOG.md` and
-`integration_lab/audit/risk_register.md` risks #15-#16. Phases 4 (remainder),
+`_post4b_supplementary_evidence/audit/risk_register.md` risks #15-#16. Phases 4 (remainder),
 9, 11, 13, 14 in the table above should now be read as DONE per this step's
-evidence (`integration_lab/evidence/session_recovery_step_c/`); the table
+evidence (`session_recovery_step_c/`, a development-workspace artifact under
+the full project workspace's `integration_lab/evidence/`, not included in
+this standalone package); the table
 itself predates Batch 2/step C numbering — treat `PROGRESS.md` as the
 current source of truth. Readiness: `LOCAL_READY`.
 
@@ -50,13 +52,15 @@ The Batch 2 background agent for this repo was killed mid-run by
 infrastructure failures (not task-logic failures) with a large amount of
 uncommitted Phase 3-9-range work in progress — but explicitly **without**
 Phases 10-12 (series runtime, artifact generator, replay verifier) or the
-`run-subgame`/`run-series`/`verify-replay` CLI wiring, none of which exist in
-this repo yet (see `integration_lab/evidence/session_recovery/
-recovery_notes.md`). This recovery step fixed only the one specific bug that
+`run-subgame`/`run-series`/`verify-replay` CLI wiring, none of which existed in
+this repo at that point in history (see `session_recovery/recovery_notes.md`,
+a development-workspace artifact under the full project workspace's
+`integration_lab/evidence/`, not included in this standalone package). This
+recovery step fixed only the one specific bug that
 agent was mid-fix on (an illegal `WAITING -> BEGIN_AUDIT` state transition
 when a caller-supplied turn cap is smaller than the configured
-`survival_threshold` — see `integration_lab/evidence/
-session_recovery_step_a/thief_state_fix/`) plus a Ruff unused-import fix and
+`survival_threshold` — see `session_recovery_step_a/thief_state_fix/`, same
+development-workspace evidence tree) plus a Ruff unused-import fix and
 quality gates; it did not implement Phases 10-12, run a real two-process
 series, or advance readiness past `LOCAL_READY`. The phase table above still
 reflects Batch 1 status only and has not been re-audited phase-by-phase
@@ -74,14 +78,17 @@ series_runtime.py` (Phase 10), `services/artifact_models.py`/
 `show-status` in `__main__.py`. Also fixed the production FastMCP/Uvicorn
 shutdown defect (see `CHANGELOG.md`) and hardened `mcp_client.py` against
 `ToolError`. Thief grew from 220 tests (step A checkpoint) to 281 tests,
-94.79% coverage. Full detail: `integration_lab/evidence/
-session_recovery_step_b/`. Still NOT implemented or run: a real
+94.79% coverage. Full detail: `session_recovery_step_b/`, a
+development-workspace artifact under the full project workspace's
+`integration_lab/evidence/`, not included in this standalone package. At
+that point in history, still NOT implemented or run: a real
 two-process series with an actual Police opponent, the mutual cross-repo
 audit, GUI, replay viewer (Phase 10 in the table above), Gmail (Phase 12 in
 the table above), public network/league play (Phase 15), or advanced
-strategy (`EntropyEscapeThiefBrain`, Phase 7). The phase table's numbering
+strategy (`EntropyEscapeThiefBrain`, Phase 7) — all of these are now DONE,
+per the phase table above. The phase table's numbering
 above predates Batch 2 and does not line up 1:1 with the Batch-2 phase
-numbers used in `integration_lab/audit/PROGRESS.md` and the CHANGELOG —
+numbers used in `_post4b_supplementary_evidence/audit/PROGRESS.md` and the CHANGELOG —
 treat the table above as historical (Batch 1) and the CHANGELOG +
 PROGRESS.md as the current source of truth for Batch 2 status.
 

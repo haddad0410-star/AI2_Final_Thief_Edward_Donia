@@ -8,10 +8,12 @@ normally after observing ``should_exit`` -- there is no ``try/finally``
 around that call, so a raw ``Task.cancel()`` skips ``shutdown()`` entirely
 and permanently leaks the listening socket for the rest of the process.
 Verified by direct experiment during the Batch-2 recovery (see the sibling
-Police repo's ``integration_lab/evidence/session_recovery_step_a/
-police_port_fix/`` and this workspace's ``session_recovery_step_b/
-server_lifecycle/`` -- findings shared via the recovery evidence trail only,
-never via a source import; this module is an independent implementation).
+Police repo's ``session_recovery_step_a/police_port_fix/`` and this
+workspace's ``session_recovery_step_b/server_lifecycle/`` --
+development-workspace artifacts, under the full project workspace's
+``integration_lab/evidence/``, not included in this standalone package --
+findings shared via the recovery evidence trail only, never via a source
+import; this module is an independent implementation).
 
 :class:`ManagedServer` owns a directly-built ``uvicorn.Server`` for FastMCP's
 own real ASGI app (``mcp.http_app()`` -- the same app ``run_http_async``

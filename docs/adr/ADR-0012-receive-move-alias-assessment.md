@@ -14,7 +14,7 @@ rejected by the identical validation path, never silently guessed at.
 
 The book's own illustrative FastMCP example (Ch.2.3.2, printed p.28, visually
 confirmed) exposes a single tool literally named `receive_move`. The reference-repo
-convention we adopted for interoperability (`integration_lab/audit/protocol_contract.md`)
+convention we adopted for interoperability (`_post4b_supplementary_evidence/audit/protocol_contract.md`)
 instead uses `receive_turn` as the general-purpose "deliver one turn's sealed record"
 tool. An opponent group that implemented the book's example literally, rather than
 studying the fuller reference convention, might call a tool named `receive_move`

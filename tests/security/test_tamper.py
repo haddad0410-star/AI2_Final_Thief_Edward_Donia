@@ -1,8 +1,9 @@
 """Phase 4 tamper injection: mutate each sealed field one at a time and confirm
 the recomputation audit detects every single mutation (tamper_forfeit).
 
-The saved evidence file integration_lab/evidence/tamper_tests/... is the real
-pytest output of this module."""
+The saved evidence file (evidence/tamper_tests/... under the full project
+workspace's integration_lab/, not included in this standalone package) is
+the real pytest output of this module."""
 
 from __future__ import annotations
 

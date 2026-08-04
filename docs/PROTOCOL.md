@@ -6,12 +6,14 @@ summarizes only what's specific to running this repo as the Thief side.
 - This peer's default local port: `8902` (private, set in `config/thief/game.toml`, not negotiated).
 - Opponent URL: supplied via this peer's own `game.toml` / `.env` (`OPPONENT_MCP_URL`) —
   the only network detail this peer is given about the opponent.
-- Tool surface exposed by this peer's FastMCP server: `negotiate`, `receive_turn`,
-  `submit_audit`, `receive_control` (see canonical doc for exact schemas). **Batch 1
-  implements only `health`, `negotiate`, and `propose_config`** (real HTTP, see
-  `src/thief_peer/infrastructure/mcp_server.py`) — `receive_turn`/`submit_audit`/
-  `receive_control` are schemas only (`src/thief_peer/protocol/`), not yet wired to
-  server tools; that is a later batch. See `docs/adr/ADR-0012-receive-move-alias-
+- Tool surface exposed by this peer's FastMCP server: `negotiate`, `receive_turn`
+  (plus its `receive_move` alias), `submit_audit`, `receive_control` (see canonical
+  doc for exact schemas). **Batch 1 implemented only `health`, `negotiate`, and
+  `propose_config`** (real HTTP, see `src/thief_peer/infrastructure/mcp_server.py`);
+  `receive_turn`/`submit_audit`/`receive_control` were schemas-only at that point.
+  All four tools are now fully implemented and wired through
+  `infrastructure/game_tools.py` and `infrastructure/turn_router.py`, used in real
+  two-process gameplay. See `docs/adr/ADR-0012-receive-move-alias-
   assessment.md` for the `receive_move` alias decision.
 - Thief-specific wire fields: `claim_response` (this side must answer honestly), `win_claim` (this side sends it on survival).
 - Four JSON artifacts this peer writes each series: `declaration_<game_id>.json`,

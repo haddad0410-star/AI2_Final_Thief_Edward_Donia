@@ -28,7 +28,9 @@ opponent's true position only 30.5% of the time, and belief entropy barely
 drops (5.61 -> 5.36 bits) — a confident-looking maximum-likelihood signal,
 not an exact-position leak (i.e. the Thief's own true cell is not being
 exposed to Police through this channel). See
-`integration_lab/evidence/batch3_6/epistemic_leakage_audit.md`.
+`epistemic_leakage_audit.md`, a development-workspace artifact (under the
+full project workspace's `integration_lab/evidence/batch3_6/`), not
+included in this standalone package.
 
 ## Pipeline (frozen, actually wired into the peer runtime as of Batch 3.5 Task 6)
 
@@ -37,7 +39,9 @@ turn at the top of `services/turn_loop.py::_run_turn`, before the strategy
 brain is invoked. This section supersedes the pre-Batch-3.5 description of
 this file (which described a hypothetical future order, written before the
 wire pipeline that actually delivers scent/hint evidence existed at all —
-see `integration_lab/evidence/batch3_5/observation_pipeline_audit.md`).
+see `observation_pipeline_audit.md`, a development-workspace artifact
+(under the full project workspace's `integration_lab/evidence/batch3_5/`),
+not included in this standalone package).
 
 1. **Prior** — `state.belief`, carried over from the previous turn (a fresh
    `uniform_prior(grid_size, barriers)` at sub-game start).
@@ -108,6 +112,7 @@ never returns an invalid (non-normalized) distribution.
 
 ## Evidence
 
-`integration_lab/evidence/belief_reference_run.json` — real computed output from this
-implementation (uniform prior, transition, scent update, hint update, entropy values),
-not fabricated.
+`belief_reference_run.json` — real computed output from this implementation (uniform
+prior, transition, scent update, hint update, entropy values), not fabricated; a
+development-workspace artifact (under the full project workspace's
+`integration_lab/evidence/`), not included in this standalone package.

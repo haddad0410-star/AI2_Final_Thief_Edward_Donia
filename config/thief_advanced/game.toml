@@ -7,7 +7,7 @@
 # ADVANCED-STRATEGY DEMO PROFILE: identical to config/thief except [strategy]
 # below points at EntropyEscapeThiefBrain. Same thief_class + profile + seed
 # combination already verified in
-# integration_lab/evidence/batch4b/bilateral_series/thief_config/game.toml.
+# _post4b_supplementary_evidence/batch4b/bilateral_series/thief_config/game.toml.
 # Ports match the standard GUI README (8901/8902).
 
 version = "0.1.0"

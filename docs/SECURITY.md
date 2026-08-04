@@ -33,20 +33,24 @@ Every message category (health, declaration, config proposal, negotiation ack, t
 commitment, turn reveal, public turn envelope, hint, scent payload, barrier
 declaration, capture claim/response, audit submission, control, protocol error) has
 strict `__post_init__` validation and negative tests — 23 tests in
-`tests/protocol/test_protocol_schemas.py`. This validates message *shape*; it does not
-yet implement the commit-reveal *lifecycle* (see below).
+`tests/protocol/test_protocol_schemas.py`. This validated message *shape* only at
+Batch 1; the commit-reveal *lifecycle* itself is implemented and tested, see below.
 
-## Planned security test categories (`tests/security/`) — later batch
+## Security test categories (`tests/security/`) — implemented
 
 - Tamper injection: alter move, hint, verdict, nonce, step, config, capture answer,
-  record order — each must be detected by the audit.
-- Nonce reuse rejection.
-- Constant-time comparison on reveal verification (no timing side-channel).
-- False capture-claim / false win-claim detection.
+  record order — each is detected by the audit (`tests/security/test_tamper.py`, 13
+  single-field mutation cases plus record-order/gap detection).
+- Nonce reuse rejection — `tests/unit/test_sealing.py::test_nonce_reuse_is_detected`.
+- Constant-time comparison on reveal verification (`secrets.compare_digest`, no
+  timing side-channel) — verified via monkeypatch spy in `tests/unit/test_sealing.py`.
+- False capture-claim / false win-claim detection — covered by the tamper-injection
+  cases above plus `tests/unit/test_capture_response_delay.py`.
 
-None of these lifecycle tests exist yet — commit-reveal is schema-only this batch
-(`src/thief_peer/protocol/messages_turn.py`, `messages_capture.py`); the full sealing/
-audit implementation is a later batch. This document will be updated again then.
+The full sealing/audit implementation (`src/thief_peer/domain/sealing/`) is
+implemented and unified under the versioned `commitment/1` schema (Batch 4B) for
+bilateral verification against the independently-built Police peer — see the
+Batch 4B section below.
 
 ## Session recovery step B additions
 

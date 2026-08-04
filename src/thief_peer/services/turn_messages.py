@@ -1,6 +1,7 @@
 """Wire-message builders for the thief's outbound turn (Batch 2 Phase 9;
 envelope/reveal shape aligned to the Police repo's wire contract in session
-recovery step C, Task 5 -- see ``integration_lab/audit/protocol_contract.md``
+recovery step C, Task 5 -- see
+``_post4b_supplementary_evidence/audit/protocol_contract.md``
 section 3.3/"sequence_id" note).
 
 Produces the discriminated ``message_type`` envelopes the opponent's

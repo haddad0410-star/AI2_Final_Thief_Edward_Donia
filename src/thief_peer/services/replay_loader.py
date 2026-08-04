@@ -1,8 +1,8 @@
 """Load a full artifact set from a directory for the replay verifier (Phase 12).
 
 Pure file I/O only -- no repository-private runtime state, live process
-memory, the Police repository, integration_lab, or opponent private TOML is
-consulted, so the verifier can audit any artifact directory (ours or, in
+memory, the Police repository, the development workspace, or opponent
+private TOML is consulted, so the verifier can audit any artifact directory (ours or, in
 principle, an opponent's published set). Independent implementation.
 """
 

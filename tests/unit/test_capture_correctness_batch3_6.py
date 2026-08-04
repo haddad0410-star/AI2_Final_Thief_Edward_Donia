@@ -2,8 +2,10 @@
 
 Most edge cases (conflicting/duplicate/stale claims, false capture claim,
 deadline exceeded, no response) are already covered by
-integration_lab/scripts/failure_drills.py (18/18 passing, rerun this
-batch) and tests/unit/test_capture_response_delay.py (true/false/barrier
+failure_drills.py (18/18 passing, rerun this batch; a development-workspace
+script under the full project workspace's integration_lab/scripts/, not
+included in this standalone package) and
+tests/unit/test_capture_response_delay.py (true/false/barrier
 claims, one-turn-delayed confirmation). This file adds the one boundary
 case not yet explicitly tested: capture and the survival threshold being
 reachable on the SAME final turn.

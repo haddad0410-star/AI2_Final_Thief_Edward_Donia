@@ -98,7 +98,7 @@ class HttpOpponentGateway:
         series it would otherwise accumulate without bound and eventually
         exhaust the bounded inbox's capacity (a real defect surfaced by
         session recovery step C, Task 7's real six-sub-game series -- see
-        integration_lab/audit/risk_register.md)."""
+        _post4b_supplementary_evidence/audit/risk_register.md)."""
         env = reveal_message.get("envelope", {})
 
         def _is_matching_commitment(message: dict) -> bool:
