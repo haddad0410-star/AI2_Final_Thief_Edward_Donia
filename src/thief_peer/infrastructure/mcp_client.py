@@ -21,14 +21,13 @@ from mcp.shared.exceptions import McpError
 from thief_peer.infrastructure.mcp_rate_limit_middleware import OVERLOAD_ERROR_CODE
 
 #: FastMCP wraps unreachable-peer failures (connection refused, DNS, etc.) in
-#: a plain RuntimeError as well as the more specific types below. ToolError
-#: is raised when the opponent IS reachable but rejects the call at the MCP
-#: protocol level (e.g. an unknown tool name -- an incompatible or
-#: mid-startup peer): this is not "our own code is broken," it is the
-#: opponent being unusable right now, so it is classified the same way as a
-#: connection failure rather than left to crash the runtime as an unhandled
-#: exception.
-_CONNECTION_FAILURES = (OSError, TimeoutError, ClientError, ToolError, RuntimeError)
+#: a plain RuntimeError as well as the more specific types below -- all mean
+#: "the opponent could not be reached," never a bug in our own code.
+#: ``ToolError`` is deliberately NOT included here (Gate A1 correction): a
+#: real ``tools/call`` rejection needs its own handling below to distinguish
+#: a retryable overload from a genuine protocol-level rejection (e.g. an
+#: unknown tool name -- an incompatible or mid-startup peer).
+_CONNECTION_FAILURES = (OSError, TimeoutError, ClientError, RuntimeError)
 
 #: Appendix F Table 19's own binding minimums (status "minimum" -- "absent
 #: explicit agreement, the example value is the mandatory default"): a
@@ -36,6 +35,23 @@ _CONNECTION_FAILURES = (OSError, TimeoutError, ClientError, ToolError, RuntimeEr
 #: AT LEAST 3 retries before giving up on a legitimate overload response.
 DEFAULT_RETRY_BACKOFF_SEC = 5.0
 DEFAULT_MAX_RETRIES = 3
+
+#: The MCP SDK's generic ``tools/call`` exception handler
+#: (``mcp/server/lowlevel/server.py``: ``except Exception as e: return
+#: self._make_error_result(str(e))``) flattens ANY exception raised from
+#: server-side middleware -- including ``McpOverloadError`` -- into a plain
+#: ``isError=True`` tool result; the client only ever sees a
+#: ``fastmcp.exceptions.ToolError`` carrying the stringified message, never
+#: the original ``McpError`` with its structured code/data (confirmed by
+#: direct inspection of the installed package and by a real authenticated
+#: two-process series). These are the exact two messages
+#: ``McpOverloadError`` can produce (see ``incoming_gatekeeper.py``'s
+#: ``OverloadedError`` reasons) -- an EXACT allowlist, never a substring or
+#: prefix match, so a validation/auth/tamper/schema/unknown-tool
+#: ``ToolError`` is never misclassified as a retryable overload.
+_OVERLOAD_TOOL_ERROR_MESSAGES = frozenset(
+    {"overloaded: rate_limit_exceeded", "overloaded: queue_depth_exceeded"}
+)
 
 
 class PeerUnavailableError(Exception):
@@ -54,6 +70,12 @@ def _is_connection_timeout(exc: McpError) -> bool:
     return exc.error.code == httpx.codes.REQUEST_TIMEOUT
 
 
+def _is_overload_tool_error(exc: ToolError) -> bool:
+    """True only for the exact flattened overload message text -- see the
+    module-level note on ``_OVERLOAD_TOOL_ERROR_MESSAGES`` above."""
+    return str(exc) in _OVERLOAD_TOOL_ERROR_MESSAGES
+
+
 def _retry_after(exc: McpError) -> float:
     data = exc.error.data
     if isinstance(data, dict):
@@ -66,13 +88,16 @@ def _retry_after(exc: McpError) -> float:
 async def _call(
     url: str, tool: str, arguments: dict, timeout_seconds: float, token: str | None = None
 ) -> dict:
-    """A legitimate overload response (``OVERLOAD_ERROR_CODE`` --
-    ``mcp_rate_limit_middleware.McpOverloadError``) is retried, honoring the
-    server's own ``retry_after_seconds`` hint, up to ``DEFAULT_MAX_RETRIES``
-    times -- Appendix F Table 19's own binding minimum retry count. Never
-    retried indefinitely: once exhausted, this becomes an ordinary
-    ``PeerUnavailableError``, the same outcome as any other opponent-trouble
-    case the rest of this codebase already knows how to handle gracefully."""
+    """A legitimate overload response is retried -- honoring the server's
+    own ``retry_after_seconds`` hint when a structured ``McpError`` is
+    actually delivered, else the binding-minimum default backoff (the real
+    ``tools/call`` path, see ``_OVERLOAD_TOOL_ERROR_MESSAGES``) -- up to
+    ``DEFAULT_MAX_RETRIES`` times, Appendix F Table 19's own binding minimum
+    retry count. Never retried indefinitely: once exhausted, this becomes an
+    ordinary ``PeerUnavailableError``, the same outcome as any other
+    opponent-trouble case the rest of this codebase already knows how to
+    handle gracefully. A non-overload ``ToolError`` (validation, auth,
+    tamper, schema, unknown-tool, ...) is never retried."""
     auth = BearerAuth(token) if token else None
     attempts = 0
     while True:
@@ -82,6 +107,16 @@ async def _call(
             return result.data
         except _CONNECTION_FAILURES as exc:
             raise PeerUnavailableError(f"peer at {url} did not respond: {exc}") from exc
+        except ToolError as exc:
+            if _is_overload_tool_error(exc) and attempts < DEFAULT_MAX_RETRIES:
+                attempts += 1
+                await asyncio.sleep(DEFAULT_RETRY_BACKOFF_SEC)
+                continue
+            if _is_overload_tool_error(exc):
+                raise PeerUnavailableError(
+                    f"peer at {url} stayed overloaded after {attempts} retries"
+                ) from exc
+            raise PeerUnavailableError(f"peer at {url} rejected the call: {exc}") from exc
         except McpError as exc:
             if exc.error.code == OVERLOAD_ERROR_CODE and attempts < DEFAULT_MAX_RETRIES:
                 attempts += 1
