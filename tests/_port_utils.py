@@ -48,10 +48,14 @@ def is_port_free(port: int, host: str = HOST) -> bool:
         sock.close()
 
 
-async def start_test_server(mcp: FastMCP, port: int, host: str = HOST) -> ManagedServer:
+async def start_test_server(
+    mcp: FastMCP, port: int, host: str = HOST, *, middleware=None
+) -> ManagedServer:
     """Start ``mcp``'s real HTTP ASGI app via the production-grade
-    :class:`~thief_peer.infrastructure.server_lifecycle.ManagedServer`."""
-    server = ManagedServer(mcp, host, port)
+    :class:`~thief_peer.infrastructure.server_lifecycle.ManagedServer`.
+    ``middleware``, when given, is forwarded unchanged (Gate A1 auth/rate-limit
+    testing); ``None`` reproduces the exact pre-Gate-A1 behavior."""
+    server = ManagedServer(mcp, host, port, middleware=middleware)
     await server.start()
     return server
 

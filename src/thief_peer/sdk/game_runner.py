@@ -19,21 +19,24 @@ from thief_peer.domain.state_machine import PeerStateMachine
 from thief_peer.infrastructure.game_tools import build_game_server
 from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_health
 from thief_peer.infrastructure.server_lifecycle import ManagedServer
+from thief_peer.sdk.public_mode import build_public_middleware
 from thief_peer.services.game_ids import derive_game_id, derive_game_uid
 from thief_peer.services.gateway import HttpOpponentGateway
 from thief_peer.services.result_agreement import finalize_series_agreement
 from thief_peer.services.series_artifacts import write_series_artifacts
 from thief_peer.services.series_runtime import run_series
 from thief_peer.services.subgame_deps import SubGameDeps, make_deps
-from thief_peer.services.subgame_runtime import SubGameRuntime
 from thief_peer.shared.config_loader import load_private_config, load_shared_config, sha256_hex
 
 
-async def _await_opponent_ready(opponent_url: str) -> None:
+async def _await_opponent_ready(opponent_url: str, opponent_token: str | None = None) -> None:
     # Covers ordinary two-terminal startup skew; a genuine no-show still
     # fails honestly at the first real gameplay call below, unchanged.
+    # `opponent_token` (Gate A1) is required when the opponent runs
+    # `--public` -- without it this poll is rejected with a real 401, not a
+    # transient connectivity failure.
     with contextlib.suppress(PeerUnavailableError):
-        await wait_for_health(opponent_url, attempts=100, delay_seconds=0.3)
+        await wait_for_health(opponent_url, attempts=100, delay_seconds=0.3, token=opponent_token)
 
 
 def _load(config_dir: Path):
@@ -46,44 +49,22 @@ def _load(config_dir: Path):
     return shared, private, config_sha, game_id, game_uid
 
 
-async def _serve(config_sha: str, game_uid: str, machine: PeerStateMachine, port: int):
+async def _serve(
+    config_sha: str,
+    game_uid: str,
+    machine: PeerStateMachine,
+    port: int,
+    *,
+    public_token: str | None = None,
+    config_dir: Path | None = None,
+):
     mcp, router = build_game_server(
         Role.THIEF, game_uid=game_uid, config_sha256=config_sha, machine=machine
     )
-    server = ManagedServer(mcp, "127.0.0.1", port)
+    middleware = build_public_middleware(public_token, config_dir) if public_token else None
+    server = ManagedServer(mcp, "127.0.0.1", port, middleware=middleware)
     await server.start()
     return server, router
-
-
-async def run_subgame_headless(config_dir: Path, opponent_url: str) -> dict:
-    """Run one sub-game against a live opponent server; return a JSON-safe summary."""
-    shared, private, config_sha, game_id, game_uid = _load(config_dir)
-    machine = PeerStateMachine()
-    server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
-    await _await_opponent_ready(opponent_url)
-    gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
-    deps = make_deps(
-        shared,
-        gateway,
-        game_uid,
-        config_sha,
-        seed=private.seed,
-        strategy_class=private.strategy.thief_class,
-        strategy_weights=private.strategy.weights,
-    )
-    try:
-        result = await SubGameRuntime(deps, machine=machine).run(opponent_url=opponent_url)
-    finally:
-        await server.stop()
-    return {
-        "mode": "run-subgame",
-        "game_id": game_id,
-        "game_uid": game_uid,
-        "result": result.result.value,
-        "steps": result.steps_taken,
-        "reason": result.reason,
-        "final_state": machine.state.value,
-    }
 
 
 async def run_series_headless(
@@ -92,6 +73,8 @@ async def run_series_headless(
     smoke: bool,
     *,
     artifacts_dir: Path | None = None,
+    public_token: str | None = None,
+    opponent_token: str | None = None,
 ) -> dict:
     # `artifacts_dir`, if given, gets the four standardized JSON artifacts
     # reflecting exactly what happened, including an early technical-loss end.
@@ -100,11 +83,20 @@ async def run_series_headless(
     if smoke:
         print("SMOKE TEST ONLY: running a single sub-game, not the full 6-game series.")
     machine = PeerStateMachine()
-    server, router = await _serve(config_sha, game_uid, machine, private.network.my_port)
-    await _await_opponent_ready(opponent_url)
+    server, router = await _serve(
+        config_sha,
+        game_uid,
+        machine,
+        private.network.my_port,
+        public_token=public_token,
+        config_dir=config_dir,
+    )
+    await _await_opponent_ready(opponent_url, opponent_token)
 
     def deps_factory(index: int) -> SubGameDeps:
-        gateway = HttpOpponentGateway(opponent_url, router.turn_inbox)
+        gateway = HttpOpponentGateway(
+            opponent_url, router.turn_inbox, opponent_token=opponent_token
+        )
         return make_deps(
             shared,
             gateway,
@@ -117,7 +109,11 @@ async def run_series_headless(
 
     try:
         series = await run_series(
-            deps_factory, num_games=num_games, machine=machine, opponent_url=opponent_url
+            deps_factory,
+            num_games=num_games,
+            machine=machine,
+            opponent_url=opponent_url,
+            opponent_token=opponent_token,
         )
         series = await finalize_series_agreement(
             series,
@@ -126,6 +122,7 @@ async def run_series_headless(
             game_uid=game_uid,
             config_sha256=config_sha,
             role=Role.THIEF,
+            opponent_token=opponent_token,
         )
     finally:
         await server.stop()

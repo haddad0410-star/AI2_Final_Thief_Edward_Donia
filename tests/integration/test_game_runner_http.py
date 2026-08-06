@@ -19,11 +19,8 @@ from _port_utils import HOST, free_tcp_port, start_test_server, stop_test_server
 
 from thief_peer.domain.roles import Role
 from thief_peer.infrastructure.mcp_server import build_peer_server
-from thief_peer.sdk.game_runner import (
-    run_series_headless,
-    run_subgame_headless,
-    summary_exit_code,
-)
+from thief_peer.sdk.game_runner import run_series_headless, summary_exit_code
+from thief_peer.sdk.subgame_runner import run_subgame_headless
 
 REAL_CONFIG_DIR = Path(__file__).resolve().parents[2] / "config" / "thief"
 

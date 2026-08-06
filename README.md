@@ -246,6 +246,11 @@ uv run python -m thief_peer peer --gui ...                 # live GUI
 uv run python -m thief_peer replay --gui --police-artifacts <dir> --thief-artifacts <dir>
 uv run python -m thief_peer report --artifacts-dir <dir>   # Gmail dry-run
 uv run python -m thief_peer verify-replay --artifacts <dir>
+
+# Gate A1 (still 127.0.0.1-only -- no tunnel started by this repo itself):
+export PUBLIC_BIND_TOKEN=$(python3 integration_lab/scripts/generate_public_token.py)
+uv run python -m thief_peer peer --no-gui --public \
+  --opponent-url http://127.0.0.1:8901/mcp   # fails closed if the token is unset
 ```
 
 Full reproducibility notes (exact commands, seed ranges) per batch:

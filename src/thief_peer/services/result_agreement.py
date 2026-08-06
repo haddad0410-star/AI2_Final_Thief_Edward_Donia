@@ -100,6 +100,7 @@ async def exchange_and_resolve_agreement(
     result_digest: str,
     attempts: int = 100,
     poll_interval: float = 0.1,
+    opponent_token: str | None = None,
 ) -> FinalAgreement:
     # Send our own result, wait (bounded) for the opponent's, and resolve.
     # Never invents a their_* value: an unreachable opponent or a timed-out
@@ -116,7 +117,7 @@ async def exchange_and_resolve_agreement(
         result_digest=result_digest,
     )
     with contextlib.suppress(PeerUnavailableError):
-        await call_submit_audit(opponent_url, message)
+        await call_submit_audit(opponent_url, message, token=opponent_token)
 
     theirs = await _await_opponent_agreement(
         inbox, sender.opponent(), attempts=attempts, poll_interval=poll_interval
@@ -138,6 +139,7 @@ async def finalize_series_agreement(
     game_uid: str,
     config_sha256: str,
     role: Role,
+    opponent_token: str | None = None,
 ) -> SeriesResult:
     """Replace the series' totals/agreement fields with the REAL bilaterally
     -exchanged result, only when the series itself completed normally (a
@@ -154,6 +156,7 @@ async def finalize_series_agreement(
         our_totals=(series.police_total, series.thief_total),
         num_sub_games=len(series.sub_games),
         result_digest=digest,
+        opponent_token=opponent_token,
     )
     return replace(
         series,

@@ -6,6 +6,7 @@ dispatch only -- no business logic lives here either.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 
@@ -13,9 +14,23 @@ def peer(args: argparse.Namespace, run_series) -> int:
     if not args.gui:  # default, and explicit --no-gui, both land here
         return run_series(args)
     from thief_peer.sdk.gui_runner import run_gui
+    from thief_peer.sdk.public_mode import PublicModeError, resolve_public_tokens
+
+    try:
+        public_token, opponent_token = resolve_public_tokens(args.public)
+    except PublicModeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     artifacts_dir = Path(args.artifacts_dir) if args.artifacts_dir else None
-    return run_gui(Path(args.config_dir), args.opponent_url, args.smoke, artifacts_dir)
+    return run_gui(
+        Path(args.config_dir),
+        args.opponent_url,
+        args.smoke,
+        artifacts_dir,
+        public_token=public_token,
+        opponent_token=opponent_token,
+    )
 
 
 def replay(args: argparse.Namespace) -> int:

@@ -66,6 +66,7 @@ async def run_series(
     max_turns: int | None = None,
     machine: PeerStateMachine | None = None,
     opponent_url: str | None = None,
+    opponent_token: str | None = None,
 ) -> SeriesResult:
     """Run a full series and return its aggregated result.
 
@@ -90,7 +91,10 @@ async def run_series(
         deps = deps_factory(index)
         runtime = SubGameRuntime(deps, sub_game_number=index + 1, machine=machine)
         result = await runtime.run(
-            max_turns=max_turns, bootstrap=(index == 0), opponent_url=opponent_url
+            max_turns=max_turns,
+            bootstrap=(index == 0),
+            opponent_url=opponent_url,
+            opponent_token=opponent_token,
         )
         run_results.append(result)
         records.append(

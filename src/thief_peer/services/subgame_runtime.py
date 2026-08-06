@@ -60,6 +60,7 @@ class SubGameRuntime:
         *,
         bootstrap: bool = True,
         opponent_url: str | None = None,
+        opponent_token: str | None = None,
     ) -> SubGameRunResult:
         """Run turns until a typed outcome; then self-audit and score.
 
@@ -95,7 +96,7 @@ class SubGameRuntime:
         """
         if bootstrap:
             self._fast_forward_to_waiting()
-            await self._await_opponent_ready(opponent_url)
+            await self._await_opponent_ready(opponent_url, opponent_token)
         cap = max_turns if max_turns is not None else self._deps.survival_threshold + 1
         try:
             for _ in range(cap):
@@ -108,14 +109,22 @@ class SubGameRuntime:
         return self.abort("turn cap exhausted before a natural sub-game outcome")
 
     @staticmethod
-    async def _await_opponent_ready(opponent_url: str | None) -> None:
+    async def _await_opponent_ready(
+        opponent_url: str | None, opponent_token: str | None = None
+    ) -> None:
         # Called right after leaving INITIALIZING (above), so we stay
         # receptive to their first message the whole time we wait for them;
         # a genuine no-show still fails honestly at the first real turn call.
+        # `opponent_token` (Gate A1) is required when the opponent runs
+        # `--public` -- without it every poll is rejected with a real 401,
+        # not a transient connectivity failure, and would never be retried
+        # away.
         if opponent_url is None:
             return
         with contextlib.suppress(PeerUnavailableError):
-            await wait_for_health(opponent_url, attempts=100, delay_seconds=0.3)
+            await wait_for_health(
+                opponent_url, attempts=100, delay_seconds=0.3, token=opponent_token
+            )
 
     def abort(self, reason: str) -> SubGameRunResult:
         """Force this sub-game to a legal TECHNICAL_LOSS exit from wherever

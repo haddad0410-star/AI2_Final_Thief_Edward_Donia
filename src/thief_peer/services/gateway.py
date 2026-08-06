@@ -49,15 +49,17 @@ class HttpOpponentGateway:
         *,
         poll_interval: float = 0.1,
         max_polls: int = 300,
+        opponent_token: str | None = None,
     ) -> None:
         self._url = url
         self._local_inbox = local_inbox
         self._timeout = timeout_seconds
         self._poll_interval = poll_interval
         self._max_polls = max_polls
+        self._opponent_token = opponent_token
 
     async def deliver_turn(self, message: dict) -> dict:
-        ack = await call_receive_turn(self._url, message, self._timeout)
+        ack = await call_receive_turn(self._url, message, self._timeout, token=self._opponent_token)
         if message.get("message_type") != "reveal" or not ack.get("ok"):
             return ack
         envelope = message["envelope"]
@@ -73,7 +75,9 @@ class HttpOpponentGateway:
         return {**ack, "opponent_turn": opponent_turn}
 
     async def deliver_audit(self, payload: dict) -> dict:
-        return await call_submit_audit(self._url, payload, self._timeout)
+        return await call_submit_audit(
+            self._url, payload, self._timeout, token=self._opponent_token
+        )
 
     async def _await_opponent_reveal(self, sub_game_number: int, step: int) -> dict | None:
         def _is_matching_reveal(message: dict) -> bool:
