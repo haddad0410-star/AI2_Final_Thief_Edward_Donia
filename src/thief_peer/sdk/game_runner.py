@@ -1,10 +1,7 @@
-"""SDK orchestration for the headless game CLIs. Wires config loading, this
-peer's own FastMCP server, the HTTP opponent gateway, the sub-game/series
-runtimes, and the end-of-series bilateral result agreement into two async
-entrypoints. Business logic lives here, not in ``__main__``, per CLAUDE.md.
-Independent implementation (no import of the Police repository). Validated
-for real over two independent OS processes and real HTTP -- see
-docs/PROTOCOL.md and the bundled `_post4b_supplementary_evidence/` evidence.
+"""SDK orchestration for the headless game CLIs: config loading, this peer's
+own FastMCP server, the HTTP opponent gateway, sub-game/series runtimes, and
+end-of-series bilateral result agreement. Independent implementation (no
+import of the Police repository); business logic lives here, not `__main__`.
 """
 
 from __future__ import annotations
@@ -18,6 +15,7 @@ from thief_peer.domain.roles import Role
 from thief_peer.domain.state_machine import PeerStateMachine
 from thief_peer.infrastructure.game_tools import build_game_server
 from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_health
+from thief_peer.infrastructure.outbound_pacer import OutboundPacer
 from thief_peer.infrastructure.server_lifecycle import ManagedServer
 from thief_peer.sdk.public_mode import build_public_middleware
 from thief_peer.services.game_ids import derive_game_id, derive_game_uid
@@ -26,7 +24,12 @@ from thief_peer.services.result_agreement import finalize_series_agreement
 from thief_peer.services.series_artifacts import write_series_artifacts
 from thief_peer.services.series_runtime import run_series
 from thief_peer.services.subgame_deps import SubGameDeps, make_deps
-from thief_peer.shared.config_loader import load_private_config, load_shared_config, sha256_hex
+from thief_peer.shared.config_loader import (
+    load_private_config,
+    load_rate_limits,
+    load_shared_config,
+    sha256_hex,
+)
 
 
 async def _await_opponent_ready(opponent_url: str, opponent_token: str | None = None) -> None:
@@ -61,10 +64,19 @@ async def _serve(
     mcp, router = build_game_server(
         Role.THIEF, game_uid=game_uid, config_sha256=config_sha, machine=machine
     )
-    middleware = build_public_middleware(public_token, config_dir) if public_token else None
+    middleware = build_public_middleware(mcp, public_token, config_dir) if public_token else None
     server = ManagedServer(mcp, "127.0.0.1", port, middleware=middleware)
     await server.start()
     return server, router
+
+
+def _build_pacer(opponent_token: str | None, config_dir: Path) -> OutboundPacer | None:
+    """A pacer is only needed when calling a ``--public`` opponent (signaled
+    by possessing their token) -- ordinary local self-play never constructs
+    one, so its behavior is provably unaffected."""
+    if opponent_token is None:
+        return None
+    return OutboundPacer(load_rate_limits(config_dir / "rate_limits.json"))
 
 
 async def run_series_headless(
@@ -92,10 +104,13 @@ async def run_series_headless(
         config_dir=config_dir,
     )
     await _await_opponent_ready(opponent_url, opponent_token)
+    # One pacer for the WHOLE series, not per sub-game -- its window must
+    # track cumulative volume across all 6 games, like the opponent's own.
+    pacer = _build_pacer(opponent_token, config_dir)
 
     def deps_factory(index: int) -> SubGameDeps:
         gateway = HttpOpponentGateway(
-            opponent_url, router.turn_inbox, opponent_token=opponent_token
+            opponent_url, router.turn_inbox, opponent_token=opponent_token, pacer=pacer
         )
         return make_deps(
             shared,
@@ -123,6 +138,7 @@ async def run_series_headless(
             config_sha256=config_sha,
             role=Role.THIEF,
             opponent_token=opponent_token,
+            pacer=pacer,
         )
     finally:
         await server.stop()

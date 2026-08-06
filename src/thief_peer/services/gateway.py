@@ -19,10 +19,12 @@ already expect -- the ``OpponentGateway`` Protocol itself is unchanged.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Protocol
 
 from thief_peer.infrastructure.inbox import BoundedInbox
 from thief_peer.infrastructure.mcp_client import call_receive_turn, call_submit_audit
+from thief_peer.infrastructure.outbound_pacer import OutboundPacer
 
 
 class OpponentGateway(Protocol):
@@ -50,6 +52,7 @@ class HttpOpponentGateway:
         poll_interval: float = 0.1,
         max_polls: int = 300,
         opponent_token: str | None = None,
+        pacer: OutboundPacer | None = None,
     ) -> None:
         self._url = url
         self._local_inbox = local_inbox
@@ -57,9 +60,19 @@ class HttpOpponentGateway:
         self._poll_interval = poll_interval
         self._max_polls = max_polls
         self._opponent_token = opponent_token
+        self._pacer = pacer
+
+    def _slot(self):
+        """Proactively paced (Gate A1 correction) when a pacer is given --
+        never for local/no-token opponents, which stay byte-for-byte
+        unaffected."""
+        return self._pacer.slot() if self._pacer is not None else contextlib.nullcontext()
 
     async def deliver_turn(self, message: dict) -> dict:
-        ack = await call_receive_turn(self._url, message, self._timeout, token=self._opponent_token)
+        async with self._slot():
+            ack = await call_receive_turn(
+                self._url, message, self._timeout, token=self._opponent_token
+            )
         if message.get("message_type") != "reveal" or not ack.get("ok"):
             return ack
         envelope = message["envelope"]
@@ -75,9 +88,10 @@ class HttpOpponentGateway:
         return {**ack, "opponent_turn": opponent_turn}
 
     async def deliver_audit(self, payload: dict) -> dict:
-        return await call_submit_audit(
-            self._url, payload, self._timeout, token=self._opponent_token
-        )
+        async with self._slot():
+            return await call_submit_audit(
+                self._url, payload, self._timeout, token=self._opponent_token
+            )
 
     async def _await_opponent_reveal(self, sub_game_number: int, step: int) -> dict | None:
         def _is_matching_reveal(message: dict) -> bool:

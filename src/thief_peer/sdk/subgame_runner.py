@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from thief_peer.domain.state_machine import PeerStateMachine
-from thief_peer.sdk.game_runner import _await_opponent_ready, _load, _serve
+from thief_peer.sdk.game_runner import _await_opponent_ready, _build_pacer, _load, _serve
 from thief_peer.services.gateway import HttpOpponentGateway
 from thief_peer.services.subgame_deps import make_deps
 from thief_peer.services.subgame_runtime import SubGameRuntime
@@ -34,7 +34,12 @@ async def run_subgame_headless(
         config_dir=config_dir,
     )
     await _await_opponent_ready(opponent_url, opponent_token)
-    gateway = HttpOpponentGateway(opponent_url, router.turn_inbox, opponent_token=opponent_token)
+    gateway = HttpOpponentGateway(
+        opponent_url,
+        router.turn_inbox,
+        opponent_token=opponent_token,
+        pacer=_build_pacer(opponent_token, config_dir),
+    )
     deps = make_deps(
         shared,
         gateway,
