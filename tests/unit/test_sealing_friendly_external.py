@@ -13,6 +13,8 @@ import pytest
 from thief_peer.domain.sealing.friendly_external import (
     canonical_json_bytes_friendly_external,
     compute_commit_hash_friendly_external,
+    position_deferred_reveal_dict,
+    reveal_message_position_deferred,
 )
 
 
@@ -61,6 +63,78 @@ def test_differs_from_our_production_formula() -> None:
 def test_rejects_payload_that_already_contains_nonce() -> None:
     with pytest.raises(ValueError, match="nonce"):
         compute_commit_hash_friendly_external({"nonce": "x"}, "aa" * 32)
+
+
+_FULL_PUBLIC_REVEAL = {
+    "schema_version": "commitment/1",
+    "step": 3,
+    "role": "thief",
+    "sub_game_number": 1,
+    "position": [3, 3],
+    "move": "N",
+    "barrier_placed": None,
+    "hint": "The northern lanes feel right.",
+    "scent_digest": "ab" * 32,
+    "scent_grid": [[0.0] * 7 for _ in range(7)],
+    "capture_claim": [3, 3],
+    "claim_response": None,
+    "win_claim": False,
+    "config_sha256": "cd" * 32,
+    "timestamp": "2026-08-15T00:00:00+00:00",
+}
+
+
+def test_position_deferred_drops_only_move_and_position() -> None:
+    result = position_deferred_reveal_dict(_FULL_PUBLIC_REVEAL)
+    assert "move" not in result
+    assert "position" not in result
+    for key in (
+        "schema_version",
+        "step",
+        "role",
+        "sub_game_number",
+        "barrier_placed",
+        "hint",
+        "scent_digest",
+        "scent_grid",
+        "capture_claim",
+        "claim_response",
+        "win_claim",
+        "config_sha256",
+        "timestamp",
+    ):
+        assert key in result
+        assert result[key] == _FULL_PUBLIC_REVEAL[key]
+
+
+def test_position_deferred_does_not_mutate_input() -> None:
+    original = dict(_FULL_PUBLIC_REVEAL)
+    position_deferred_reveal_dict(_FULL_PUBLIC_REVEAL)
+    assert original == _FULL_PUBLIC_REVEAL
+
+
+def test_position_deferred_rejects_nonce_or_intent_present() -> None:
+    with pytest.raises(ValueError, match="nonce/intent"):
+        position_deferred_reveal_dict({**_FULL_PUBLIC_REVEAL, "nonce": "x"})
+    with pytest.raises(ValueError, match="nonce/intent"):
+        position_deferred_reveal_dict({**_FULL_PUBLIC_REVEAL, "intent": "truth"})
+
+
+def test_reveal_message_position_deferred_wraps_full_message() -> None:
+    full_message = {
+        "envelope": {"game_uid": "g", "sender": "thief", "sub_game_number": 1, "step": 3},
+        "message_type": "reveal",
+        "reveal": _FULL_PUBLIC_REVEAL,
+        "config_sha256": "cd" * 32,
+    }
+    result = reveal_message_position_deferred(full_message)
+    assert result["envelope"] == full_message["envelope"]
+    assert result["message_type"] == "reveal"
+    assert "move" not in result["reveal"]
+    assert "position" not in result["reveal"]
+    assert result["reveal"]["hint"] == _FULL_PUBLIC_REVEAL["hint"]
+    # original untouched
+    assert "move" in full_message["reveal"]
 
 
 def test_never_imported_by_production_match_paths() -> None:
