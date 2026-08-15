@@ -5,6 +5,7 @@ of subgame_runtime.py to keep both files under the 150-meaningful-line cap).
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -22,6 +23,13 @@ class SubGameDeps:
     gateway: OpponentGateway
     game_uid: str
     config_sha256: str
+    #: Optional, generic hook applied to our outgoing reveal message dict
+    #: just before it's sent. ``None`` (the default, used by every existing
+    #: and every counted-match caller) is a complete no-op -- behavior is
+    #: byte-for-byte unchanged. Not tied to any specific opponent; a caller
+    #: that wants a non-default wire shape (e.g. an interoperability
+    #: adapter for one external party) passes a transform explicitly.
+    reveal_transform: Callable[[dict], dict] | None = None
 
     @property
     def response_timeout(self) -> float:
@@ -46,6 +54,7 @@ def make_deps(
     seed: int = 0,
     strategy_class: str | None = None,
     strategy_weights: dict | None = None,
+    reveal_transform: Callable[[dict], dict] | None = None,
 ) -> SubGameDeps:
     """Assemble SubGameDeps. If ``brain`` is not injected directly, the real
     private-config strategy selection (Batch 3, Task 5) is used --
@@ -69,4 +78,5 @@ def make_deps(
         gateway=gateway,
         game_uid=game_uid,
         config_sha256=config_sha256,
+        reveal_transform=reveal_transform,
     )

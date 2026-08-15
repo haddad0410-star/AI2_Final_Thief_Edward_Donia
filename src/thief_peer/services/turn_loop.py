@@ -103,10 +103,13 @@ async def _run_turn(state: SubGameState, deps) -> TurnResult:
 
     state.machine.apply(_ev(_EV.COMMIT_SENT))
     was_confirming_prior_capture = state.pending_claim_response is True
+    outgoing_reveal = reveal_message(record, deps.game_uid, deps.config_sha256)
+    if deps.reveal_transform is not None:
+        outgoing_reveal = deps.reveal_transform(outgoing_reveal)
     outcome = await deliver_commit_and_reveal(
         deps.gateway,
         commitment_message(record, deps.game_uid, deps.config_sha256),
-        reveal_message(record, deps.game_uid, deps.config_sha256),
+        outgoing_reveal,
     )
     state.exchange.acknowledge(state.step)
     state.machine.apply(_ev(_EV.ACK_RECEIVED))

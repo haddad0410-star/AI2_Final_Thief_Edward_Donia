@@ -73,7 +73,12 @@ def _extract_pheromones(data: dict) -> dict:
     section = _require(data, "pheromones")
     if _OPTIONAL_PHEROMONE_EXTENSION in section:
         value = section[_OPTIONAL_PHEROMONE_EXTENSION]
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
             raise ConfigError(
                 f"{_OPTIONAL_PHEROMONE_EXTENSION} must be a finite non-negative number, got {value!r}"
             )

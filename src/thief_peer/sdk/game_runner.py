@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 from thief_peer.domain.captures import SubGameResult
@@ -87,6 +88,7 @@ async def run_series_headless(
     artifacts_dir: Path | None = None,
     public_token: str | None = None,
     opponent_token: str | None = None,
+    reveal_transform: Callable[[dict], dict] | None = None,
 ) -> dict:
     # `artifacts_dir`, if given, gets the four standardized JSON artifacts
     # reflecting exactly what happened, including an early technical-loss end.
@@ -120,6 +122,7 @@ async def run_series_headless(
             seed=private.seed + index,
             strategy_class=private.strategy.thief_class,
             strategy_weights=private.strategy.weights,
+            reveal_transform=reveal_transform,
         )
 
     try:
