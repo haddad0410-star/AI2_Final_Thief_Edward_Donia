@@ -32,15 +32,21 @@ from thief_peer.infrastructure.mcp_rate_limit_middleware import OVERLOAD_ERROR_C
 #: raises for ReadTimeout/ConnectTimeout/ConnectError; anyio.ClosedResourceError/
 #: BrokenResourceError/EndOfStream are what surface when a peer's process exits
 #: mid-response (a real, observed failure mode: an on-demand-binding opponent
-#: whose server dies partway through an SSE stream) -- found 2026-08-17 when an
-#: uncaught httpx.ReadTimeout crashed this peer's whole process instead of
-#: failing that one call gracefully. Mirrors the identical fix in police_peer.
+#: whose server dies partway through an SSE stream). httpx.HTTPStatusError is
+#: the mcp SDK's own internal ``response.raise_for_status()`` on ANY non-2xx
+#: from the opponent (401, 502, ...) -- a different httpx exception branch
+#: than TransportError entirely, so adding TransportError alone (2026-08-17,
+#: first pass) still left every non-2xx response uncaught. All found live
+#: against real opponents this session: an uncaught 401 during health polling,
+#: then an uncaught ReadTimeout, then an uncaught 502 -- three different
+#: exception types, same root gap, same fix. Mirrors police_peer's identical fix.
 _CONNECTION_FAILURES = (
     OSError,
     TimeoutError,
     ClientError,
     RuntimeError,
     httpx.TransportError,
+    httpx.HTTPStatusError,
     anyio.ClosedResourceError,
     anyio.BrokenResourceError,
     anyio.EndOfStream,
