@@ -12,7 +12,7 @@ from thief_peer.shared.errors import ConfigError
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 REAL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "thief" / "game.json"
-EXPECTED_REAL_CONFIG_SHA256 = "f95b0d52e3699210f11870b4f9115ff76be65ab370965ef2d0c62ffa1b3500eb"
+EXPECTED_REAL_CONFIG_SHA256 = "d0f62b9a3a96cfb80432f74c0c3aa07829fca0c5192fe2304654fe934c9714c6"
 
 
 def test_valid_shared_config_loads() -> None:
