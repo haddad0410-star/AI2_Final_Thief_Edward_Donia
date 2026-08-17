@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
+import anyio
 import httpx
 from fastmcp import Client
 from fastmcp.client.auth.bearer import BearerAuth
@@ -27,7 +28,23 @@ from thief_peer.infrastructure.mcp_rate_limit_middleware import OVERLOAD_ERROR_C
 #: real ``tools/call`` rejection needs its own handling below to distinguish
 #: a retryable overload from a genuine protocol-level rejection (e.g. an
 #: unknown tool name -- an incompatible or mid-startup peer).
-_CONNECTION_FAILURES = (OSError, TimeoutError, ClientError, RuntimeError)
+#: httpx.TransportError (not the builtin TimeoutError) is what httpx actually
+#: raises for ReadTimeout/ConnectTimeout/ConnectError; anyio.ClosedResourceError/
+#: BrokenResourceError/EndOfStream are what surface when a peer's process exits
+#: mid-response (a real, observed failure mode: an on-demand-binding opponent
+#: whose server dies partway through an SSE stream) -- found 2026-08-17 when an
+#: uncaught httpx.ReadTimeout crashed this peer's whole process instead of
+#: failing that one call gracefully. Mirrors the identical fix in police_peer.
+_CONNECTION_FAILURES = (
+    OSError,
+    TimeoutError,
+    ClientError,
+    RuntimeError,
+    httpx.TransportError,
+    anyio.ClosedResourceError,
+    anyio.BrokenResourceError,
+    anyio.EndOfStream,
+)
 
 #: Appendix F Table 19's own binding minimums (status "minimum" -- "absent
 #: explicit agreement, the example value is the mandatory default"): a
