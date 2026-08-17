@@ -18,6 +18,7 @@ from thief_peer.infrastructure.game_tools import build_game_server
 from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_health
 from thief_peer.infrastructure.outbound_pacer import OutboundPacer
 from thief_peer.infrastructure.server_lifecycle import ManagedServer
+from thief_peer.sdk.negotiate_push import push_negotiate
 from thief_peer.sdk.public_mode import build_public_middleware
 from thief_peer.services.game_ids import derive_game_id, derive_game_uid, terms_from_shared_config
 from thief_peer.services.gateway import HttpOpponentGateway
@@ -106,6 +107,7 @@ async def run_series_headless(
         config_dir=config_dir,
     )
     await _await_opponent_ready(opponent_url, opponent_token)
+    await push_negotiate(shared, private, opponent_url, "thief", opponent_token)
     # One pacer for the WHOLE series, not per sub-game -- its window must
     # track cumulative volume across all 6 games, like the opponent's own.
     pacer = _build_pacer(opponent_token, config_dir)
