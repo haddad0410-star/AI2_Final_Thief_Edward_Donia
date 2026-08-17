@@ -19,7 +19,7 @@ from thief_peer.infrastructure.mcp_client import PeerUnavailableError, wait_for_
 from thief_peer.infrastructure.outbound_pacer import OutboundPacer
 from thief_peer.infrastructure.server_lifecycle import ManagedServer
 from thief_peer.sdk.public_mode import build_public_middleware
-from thief_peer.services.game_ids import derive_game_id, derive_game_uid
+from thief_peer.services.game_ids import derive_game_id, derive_game_uid, terms_from_shared_config
 from thief_peer.services.gateway import HttpOpponentGateway
 from thief_peer.services.result_agreement import finalize_series_agreement
 from thief_peer.services.series_artifacts import write_series_artifacts
@@ -49,7 +49,7 @@ def _load(config_dir: Path):
     config_sha = sha256_hex(config_dir / "game.json")
     group_ids = shared.agreed_between
     game_id = derive_game_id(group_ids)
-    game_uid = derive_game_uid(config_sha, group_ids)
+    game_uid = derive_game_uid(terms_from_shared_config(shared), group_ids)
     return shared, private, config_sha, game_id, game_uid
 
 
